@@ -1,8 +1,8 @@
 // =====================================================
-// Scanner Screen - Document OCR Scanning
+// Scanner Screen - Document OCR Scanning (Simplified)
 // =====================================================
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
-  TouchableOpacity,
   Dimensions,
 } from 'react-native';
 import {
@@ -26,22 +25,20 @@ import {
   Portal,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 
+import { OCRResult } from '../../services/ocr';
 import {
-  scanDocument,
-  processExistingImage,
-  getDocumentHistory,
-  deleteDocument,
-  OCRResult,
-  ScanOptions,
-} from '../../services/ocr';
+  useScanDocument,
+  useProcessImage,
+  useDocumentHistory,
+  useDeleteDocument,
+} from '../../hooks/useOCR';
 import { Document } from '../../types/models';
 
 // Types
 type ScanSource = 'camera' | 'gallery';
-type ProcessingStatus = 'idle' | 'scanning' | 'processing' | 'completed' | 'error';
+type ProcessingStatus = 'idle' | 'scanning' | 'completed' | 'error';
 
 // =====================================================
 // Main Component
@@ -49,56 +46,43 @@ type ProcessingStatus = 'idle' | 'scanning' | 'processing' | 'completed' | 'erro
 
 export default function ScannerScreen() {
   // State
-  const [permission, requestPermission] = useCameraPermissions();
-  const [scanSource, setScanSource] = useState<ScanSource>('camera');
+  const[scanSource, setScanSource] = useState<ScanSource>('camera');
   const [useOpenAI, setUseOpenAI] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus>('idle');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [ocrResult, setOcrResult] = useState<OCRResult | null>(null);
-  const [documentHistory, setDocumentHistory] = useState<Document[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
 
-  // Refs
-  const cameraRef = useRef<CameraView>(null);
-
-  // Effects
-  useEffect(() => {
-    loadDocumentHistory();
-  }, []);
+  // Hooks
+  const { mutateAsync: scanDocument, isPending: isScanning } = useScanDocument();
+  const { mutateAsync: processImage, isPending: isProcessingImage } = useProcessImage();
+  const { data: documents = [], isLoading: isLoadingHistory, refetch: refetchHistory } = useDocumentHistory();
+  const { mutateAsync: deleteDocument } = useDeleteDocument();
 
   // =====================================================
   // Camera & Gallery Functions
   // =====================================================
 
   const handleTakePhoto = async () => {
-    if (!permission?.granted) {
-      const result = await requestPermission();
-      if (!result.granted) {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
         Alert.alert('Brak uprawnień', 'Aparat wymaga uprawnień do działania');
         return;
       }
-    }
 
-    setShowCamera(true);
-  };
-
-  const handleCapturePhoto = async () => {
-    if (!cameraRef.current) return;
-
-    try {
-      const photo = await cameraRef.current.takePictureAsync({
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
         quality: 0.8,
         base64: true,
-        exif: false,
       });
 
-      if (photo?.uri) {
-        setImageUri(photo.uri);
-        setShowCamera(false);
-        processImage(photo.uri);
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        const uri = result.assets[0].uri;
+        setImageUri(uri);
+        await handleProcessImage(uri);
       }
     } catch (error) {
       console.error('Błąd przechwytywania zdjęcia:', error);
@@ -107,14 +91,13 @@ export default function ScannerScreen() {
   };
 
   const handlePickFromGallery = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Brak uprawnień', 'Galeria wymaga uprawnień do działania');
-      return;
-    }
-
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Brak uprawnień', 'Galeria wymaga uprawnień do działania');
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -123,10 +106,10 @@ export default function ScannerScreen() {
         base64: true,
       });
 
-      if (!result.canceled && result.assets[0]?.uri) {
+      if (!result.canceled && result.assets?.[0]?.uri) {
         const uri = result.assets[0].uri;
         setImageUri(uri);
-        processImage(uri);
+        await handleProcessImage(uri);
       }
     } catch (error) {
       console.error('Błąd wybierania zdjęcia:', error);
@@ -138,24 +121,24 @@ export default function ScannerScreen() {
   // OCR Processing
   // =====================================================
 
-  const processImage = async (uri: string) => {
+  const handleProcessImage = async (uri: string) => {
     setStatus('scanning');
     
     try {
-      const options: ScanOptions = {
+      const options = {
         source: scanSource,
         useOpenAI,
-        language: 'pol',
+        language: 'pol' as const,
       };
 
-      const result = await processExistingImage(uri, useOpenAI);
+      const result = await processImage(uri);
       
       setOcrResult(result);
       setStatus('completed');
       setShowResultModal(true);
       
       // Odśwież historię
-      loadDocumentHistory();
+      refetchHistory();
     } catch (error) {
       console.error('Błąd przetwarzania obrazu:', error);
       setStatus('error');
@@ -177,20 +160,7 @@ export default function ScannerScreen() {
   // Document History Management
   // =====================================================
 
-  const loadDocumentHistory = async () => {
-    setIsLoadingHistory(true);
-    try {
-      const history = await getDocumentHistory();
-      setDocumentHistory(history);
-    } catch (error) {
-      console.error('Błąd ładowania historii dokumentów:', error);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  };
-
   const handleViewDocument = (document: Document) => {
-    setSelectedDocument(document);
     if (document.ocr_text) {
       setOcrResult({
         text: document.ocr_text,
@@ -214,7 +184,7 @@ export default function ScannerScreen() {
           onPress: async () => {
             try {
               await deleteDocument(documentId);
-              loadDocumentHistory();
+              refetchHistory();
               Alert.alert('Sukces', 'Dokument został usunięty');
             } catch (error) {
               Alert.alert('Błąd', 'Nie udało się usunąć dokumentu');
@@ -222,54 +192,6 @@ export default function ScannerScreen() {
           },
         },
       ]
-    );
-  };
-
-  // =====================================================
-  // Render Camera View
-  // =====================================================
-
-  const renderCamera = () => {
-    if (!showCamera) return null;
-
-    return (
-      <Modal
-        visible={showCamera}
-        onDismiss={() => setShowCamera(false)}
-        contentContainerStyle={styles.cameraModal}
-      >
-        <View style={styles.cameraContainer}>
-          <CameraView
-            ref={cameraRef}
-            style={styles.camera}
-            facing="back"
-            mode="picture"
-          >
-            <View style={styles.cameraOverlay}>
-              <View style={styles.captureFrame} />
-              
-              <View style={styles.cameraControls}>
-                <Button
-                  mode="contained"
-                  onPress={handleCapturePhoto}
-                  style={styles.captureButton}
-                  icon="camera"
-                >
-                  Zrób zdjęcie
-                </Button>
-                
-                <Button
-                  mode="outlined"
-                  onPress={() => setShowCamera(false)}
-                  style={styles.cancelButton}
-                >
-                  Anuluj
-                </Button>
-              </View>
-            </View>
-          </CameraView>
-        </View>
-      </Modal>
     );
   };
 
@@ -342,27 +264,6 @@ export default function ScannerScreen() {
                       </View>
                     )}
 
-                    {ocrResult.processedData.items && (
-                      <>
-                        <Title style={styles.sectionTitle}>Pozycje</Title>
-                        {ocrResult.processedData.items.map((item, index) => (
-                          <View key={index} style={styles.itemRow}>
-                            <Text style={styles.itemDescription}>
-                              {item.description}
-                            </Text>
-                            <View style={styles.itemDetails}>
-                              <Text style={styles.itemDetail}>
-                                {item.quantity} szt
-                              </Text>
-                              <Text style={styles.itemDetail}>
-                                {item.price}
-                              </Text>
-                            </View>
-                          </View>
-                        ))}
-                      </>
-                    )}
-
                     <Divider style={styles.divider} />
                   </>
                 )}
@@ -414,6 +315,9 @@ export default function ScannerScreen() {
   // Main Render
   // =====================================================
 
+  const isProcessing = isScanning || isProcessingImage;
+  const processingStatus = isProcessing ? 'scanning' : status;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -428,19 +332,18 @@ export default function ScannerScreen() {
         </Card>
 
         {/* Status skanowania */}
-        {status !== 'idle' && (
+        {processingStatus !== 'idle' && (
           <Card style={styles.statusCard}>
             <Card.Content style={styles.statusContent}>
               <ActivityIndicator
                 size="small"
                 color="#2196f3"
-                animating={status === 'scanning' || status === 'processing'}
+                animating={processingStatus === 'scanning'}
               />
               <Text style={styles.statusText}>
-                {status === 'scanning' && 'Skanowanie dokumentu...'}
-                {status === 'processing' && 'Przetwarzanie tekstu...'}
-                {status === 'completed' && 'Skanowanie zakończone!'}
-                {status === 'error' && 'Błąd skanowania'}
+                {processingStatus === 'scanning' && 'Skanowanie dokumentu...'}
+                {processingStatus === 'completed' && 'Skanowanie zakończone!'}
+                {processingStatus === 'error' && 'Błąd skanowania'}
               </Text>
             </Card.Content>
           </Card>
@@ -457,6 +360,7 @@ export default function ScannerScreen() {
                 onPress={() => setScanSource('camera')}
                 style={styles.sourceButton}
                 icon="camera"
+                disabled={isProcessing}
               >
                 Aparat
               </Button>
@@ -466,6 +370,7 @@ export default function ScannerScreen() {
                 onPress={() => setScanSource('gallery')}
                 style={styles.sourceButton}
                 icon="image"
+                disabled={isProcessing}
               >
                 Galeria
               </Button>
@@ -479,9 +384,10 @@ export default function ScannerScreen() {
             <View style={styles.optionRow}>
               <Chip
                 selected={useOpenAI}
-                onPress={() => setUseOpenAI(!useOpenAI)}
+                onPress={() => !isProcessing && setUseOpenAI(!useOpenAI)}
                 icon={useOpenAI ? 'check' : 'robot'}
                 style={styles.optionChip}
+                disabled={isProcessing}
               >
                 {useOpenAI ? 'OpenAI (zaawansowane)' : 'Tesseract (podstawowe)'}
               </Chip>
@@ -513,11 +419,10 @@ export default function ScannerScreen() {
                   onPress={handleTakePhoto}
                   style={styles.scanButton}
                   icon="camera"
-                  disabled={status === 'scanning' || status === 'processing'}
+                  disabled={isProcessing}
+                  loading={isProcessing}
                 >
-                  {status === 'scanning' || status === 'processing'
-                    ? 'Przetwarzanie...'
-                    : 'Zrób zdjęcie'}
+                  {isProcessing ? 'Przetwarzanie...' : 'Zrób zdjęcie'}
                 </Button>
               ) : (
                 <Button
@@ -525,11 +430,10 @@ export default function ScannerScreen() {
                   onPress={handlePickFromGallery}
                   style={styles.scanButton}
                   icon="image"
-                  disabled={status === 'scanning' || status === 'processing'}
+                  disabled={isProcessing}
+                  loading={isProcessing}
                 >
-                  {status === 'scanning' || status === 'processing'
-                    ? 'Przetwarzanie...'
-                    : 'Wybierz z galerii'}
+                  {isProcessing ? 'Przetwarzanie...' : 'Wybierz z galerii'}
                 </Button>
               )}
             </View>
@@ -552,8 +456,9 @@ export default function ScannerScreen() {
               <Button
                 icon="refresh"
                 mode="text"
-                onPress={loadDocumentHistory}
+                onPress={() => refetchHistory()}
                 loading={isLoadingHistory}
+                disabled={isProcessing}
               >
                 Odśwież
               </Button>
@@ -561,12 +466,12 @@ export default function ScannerScreen() {
 
             {isLoadingHistory ? (
               <ActivityIndicator style={styles.historyLoading} />
-            ) : documentHistory.length === 0 ? (
+            ) : documents.length === 0 ? (
               <Paragraph style={styles.emptyText}>
                 Brak zeskanowanych dokumentów
               </Paragraph>
             ) : (
-              documentHistory.map(document => (
+              documents.map((document: Document) => (
                 <View key={document.id} style={styles.documentItem}>
                   <View style={styles.documentInfo}>
                     <Text style={styles.documentName}>
@@ -582,11 +487,13 @@ export default function ScannerScreen() {
                       icon="eye"
                       size={20}
                       onPress={() => handleViewDocument(document)}
+                      disabled={isProcessing}
                     />
                     <IconButton
                       icon="delete"
                       size={20}
                       onPress={() => handleDeleteDocument(document.id)}
+                      disabled={isProcessing}
                     />
                   </View>
                 </View>
@@ -596,8 +503,7 @@ export default function ScannerScreen() {
         </Card>
       </ScrollView>
 
-      {/* Modale */}
-      {renderCamera()}
+      {/* Modal wyników */}
       {renderResultModal()}
     </SafeAreaView>
   );
@@ -727,47 +633,6 @@ const styles = StyleSheet.create({
   documentActions: {
     flexDirection: 'row',
   },
-  // Camera Modal
-  cameraModal: {
-    flex: 1,
-    margin: 0,
-    justifyContent: 'center',
-  },
-  cameraContainer: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
-  camera: {
-    flex: 1,
-  },
-  cameraOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  captureFrame: {
-    width: width * 0.8,
-    height: width * 0.6,
-    borderWidth: 2,
-    borderColor: 'white',
-    borderRadius: 8,
-    backgroundColor: 'transparent',
-  },
-  cameraControls: {
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    gap: 12,
-  },
-  captureButton: {
-    paddingHorizontal: 32,
-  },
-  cancelButton: {
-    paddingHorizontal: 32,
-  },
   // Result Modal
   resultModal: {
     flex: 1,
@@ -799,25 +664,6 @@ const styles = StyleSheet.create({
   dataValue: {
     flex: 1,
     color: '#555',
-  },
-  itemRow: {
-    marginBottom: 12,
-    padding: 8,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 6,
-  },
-  itemDescription: {
-    fontWeight: '500',
-    marginBottom: 4,
-    color: '#333',
-  },
-  itemDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  itemDetail: {
-    fontSize: 12,
-    color: '#666',
   },
   textCard: {
     marginVertical: 12,
