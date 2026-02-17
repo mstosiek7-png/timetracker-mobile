@@ -3,13 +3,10 @@
     "github.com/supabase-community/supabase-mcp": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?read_only=true&project_ref=dvikqvpvbqlfdriwutto",
-      "disabled": false,
+      
       "autoApprove": []
     },
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${workspaceFolder}"]
-    },
+    
     "github.com/modelcontextprotocol/servers/tree/main/src/filesystem": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "${workspaceFolder}"]
@@ -21,19 +18,19 @@
     "github.com/executeautomation/mcp-playwright": {
       "command": "npx",
       "args": ["-y", "@executeautomation/playwright-mcp-server"],
-      "disabled": false,
+      
       "autoApprove": []
     },
     "github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
-      "disabled": false,
+      
       "autoApprove": []
     },
     "github.com/modelcontextprotocol/servers/tree/main/src/memory": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-memory", "${workspaceFolder}/.cline/memory-bank"],
-      "disabled": false,
+      
       "autoApprove": []
     }
   },
