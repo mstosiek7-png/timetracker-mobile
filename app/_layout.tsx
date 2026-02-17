@@ -9,6 +9,7 @@ import { PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { COLORS } from '@/utils/constants';
 import { Stack } from 'expo-router';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 
 // React Query client configuration
 const queryClient = new QueryClient({
@@ -44,9 +45,11 @@ export default function RootLayout() {
       <PaperProvider theme={theme}>
         <SafeAreaProvider>
           <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          </Stack>
+          <ErrorBoundary>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack>
+          </ErrorBoundary>
         </SafeAreaProvider>
       </PaperProvider>
     </QueryClientProvider>

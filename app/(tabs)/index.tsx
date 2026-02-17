@@ -51,12 +51,14 @@ export default function DashboardScreen() {
   const { 
     data: employees = [], 
     isLoading: isLoadingEmployees,
+    error: employeesError,
     refetch: refetchEmployees 
   } = useEmployees();
 
   const { 
     data: timeEntries = [], 
     isLoading: isLoadingEntries,
+    error: timeEntriesError,
     refetch: refetchEntries 
   } = useTimeEntries();
 
@@ -140,12 +142,35 @@ export default function DashboardScreen() {
 // =====================================================
 
   const isLoading = isLoadingEmployees || isLoadingEntries;
+  const hasError = employeesError || timeEntriesError;
 
-  if (isLoading) {
+  if (isLoading && !hasError) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" />
         <Text style={styles.loadingText}>Ładowanie dashboardu...</Text>
+      </View>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorTitle}>Błąd ładowania danych</Text>
+        <Text style={styles.errorText}>
+          {employeesError?.message || timeEntriesError?.message || 'Wystąpił nieoczekiwany błąd'}
+        </Text>
+        <Button 
+          mode="contained" 
+          onPress={() => {
+            if (employeesError) refetchEmployees();
+            if (timeEntriesError) refetchEntries();
+          }}
+          style={styles.retryButton}
+          icon="refresh"
+        >
+          Spróbuj ponownie
+        </Button>
       </View>
     );
   }
@@ -410,11 +435,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
     color: '#666',
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#d32f2f',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingHorizontal: 24,
   },
   headerCard: {
     marginBottom: 16,

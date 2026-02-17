@@ -2,18 +2,22 @@
 // TimeTracker - Global Type Declarations
 // =====================================================
 
-// Declare module types for Expo packages
-declare module 'expo-camera' {
-  export * from 'expo-camera';
+// Declare module types for external packages
+declare module 'text-encoding' {
+  export class TextDecoder {
+    constructor(encoding?: string, options?: { fatal?: boolean; ignoreBOM?: boolean });
+    decode(input?: ArrayBuffer | ArrayBufferView, options?: { stream?: boolean }): string;
+    readonly encoding: string;
+    readonly fatal: boolean;
+    readonly ignoreBOM: boolean;
+  }
+  export class TextEncoder {
+    constructor(encoding?: string);
+    encode(input?: string): Uint8Array;
+    readonly encoding: string;
+  }
 }
 
-declare module 'expo-file-system' {
-  export * from 'expo-file-system';
-}
-
-declare module 'expo-image-picker' {
-  export * from 'expo-image-picker';
-}
 
 // Environment variables type declarations
 declare namespace NodeJS {

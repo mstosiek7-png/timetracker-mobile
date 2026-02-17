@@ -3,8 +3,8 @@
 -- Migration: 20260217000000_initial_schema
 -- =====================================================
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Enable UUID extension for PostgreSQL < 13
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA public;
 
 -- Set timezone
 ALTER DATABASE postgres SET timezone TO 'Europe/Warsaw';
@@ -14,7 +14,7 @@ ALTER DATABASE postgres SET timezone TO 'Europe/Warsaw';
 -- Przechowuje dane pracowników
 -- =====================================================
 CREATE TABLE IF NOT EXISTS employees (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
   position VARCHAR(100) NOT NULL,
   active BOOLEAN DEFAULT true,
@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS idx_employees_name ON employees(name);
 -- Rejestr czasu pracy
 -- =====================================================
 CREATE TABLE IF NOT EXISTS time_entries (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   hours DECIMAL(4,2) NOT NULL CHECK (hours >= 0 AND hours <= 24),
@@ -56,7 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_time_entries_date_range ON time_entries(employee_
 -- Historia wszystkich zmian (audit log)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS change_history (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   action VARCHAR(50) NOT NULL,
   entity_type VARCHAR(50) NOT NULL,
   entity_id UUID,
@@ -78,7 +78,7 @@ CREATE INDEX IF NOT EXISTS idx_change_history_entity ON change_history(entity_ty
 -- Zeskanowane dokumenty dostaw
 -- =====================================================
 CREATE TABLE IF NOT EXISTS documents (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   file_name VARCHAR(255) NOT NULL,
   file_path VARCHAR(500) NOT NULL,
   file_size INTEGER,
@@ -102,7 +102,7 @@ CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project_id);
 -- Kolejka synchronizacji dla offline mode
 -- =====================================================
 CREATE TABLE IF NOT EXISTS sync_queue (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   operation VARCHAR(20) NOT NULL CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
   table_name VARCHAR(50) NOT NULL,
   record_id UUID NOT NULL,

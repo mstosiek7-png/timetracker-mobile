@@ -2,10 +2,10 @@
 // Export Service - Excel/PDF Report Generation
 // =====================================================
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
-import ExcelJS from 'exceljs';
+import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { supabase } from './supabase';
@@ -49,67 +49,70 @@ export interface ReportData {
 
 /**
  * Generuje raport Excel z danymi o czasie pracy
+ * Używa biblioteki xlsx (SheetJS) - lżejszej i kompatybilnej z React Native
  */
 export async function generateExcelReport(options: ExportOptions): Promise<string> {
   try {
     // Pobierz dane z bazy
     const data = await fetchReportData(options);
-    
-    // Utwórz nowy skoroszyt
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'TimeTracker App';
-    workbook.created = new Date();
-    
-    // Dodaj arkusz z danymi
-    const worksheet = workbook.addWorksheet('Raport czasu pracy');
-    
-    // Nagłówki kolumn
-    worksheet.columns = [
-      { header: 'Pracownik', key: 'employeeName', width: 25 },
-      { header: 'Stanowisko', key: 'position', width: 20 },
-      { header: 'Data', key: 'date', width: 12 },
-      { header: 'Godziny', key: 'hours', width: 10 },
-      { header: 'Status', key: 'status', width: 15 },
-      ...(options.includeNotes ? [{ header: 'Notatki', key: 'notes', width: 30 }] : []),
+
+    // Przygotuj nagłówki
+    const headers = [
+      'Pracownik',
+      'Stanowisko',
+      'Data',
+      'Godziny',
+      'Status',
+      ...(options.includeNotes ? ['Notatki'] : []),
     ];
-    
-    // Dodaj dane
-    data.forEach(row => {
-      worksheet.addRow(row);
-    });
-    
-    // Formatowanie nagłówków
-    worksheet.getRow(1).font = { bold: true };
-    worksheet.getRow(1).fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE0E0E0' }
-    };
-    
-    // Formatowanie liczb
-    worksheet.getColumn('hours').numFmt = '0.00';
-    
+
+    // Przygotuj wiersze danych
+    const rows = data.map(row => [
+      row.employeeName,
+      row.position,
+      row.date,
+      row.hours,
+      translateStatus(row.status),
+      ...(options.includeNotes ? [row.notes || ''] : []),
+    ]);
+
     // Dodaj podsumowanie
-    const summaryRow = worksheet.addRow({});
-    summaryRow.getCell(1).value = 'Podsumowanie:';
-    summaryRow.getCell(1).font = { bold: true };
-    
     const totalHours = data.reduce((sum, row) => sum + row.hours, 0);
-    worksheet.addRow({
-      employeeName: 'Łączna liczba godzin:',
-      hours: totalHours
-    });
-    
+    rows.push([]); // Pusty wiersz
+    const summaryRow: (string | number)[] = ['Łączna liczba godzin:', '', '', totalHours, ''];
+    if (options.includeNotes) summaryRow.push('');
+    rows.push(summaryRow);
+
+    // Utwórz arkusz z nagłówkami i danymi
+    const worksheetData = [headers, ...rows];
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    // Ustaw szerokości kolumn
+    worksheet['!cols'] = [
+      { wch: 25 }, // Pracownik
+      { wch: 20 }, // Stanowisko
+      { wch: 12 }, // Data
+      { wch: 10 }, // Godziny
+      { wch: 15 }, // Status
+      ...(options.includeNotes ? [{ wch: 30 }] : []), // Notatki
+    ];
+
+    // Utwórz skoroszyt
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Raport czasu pracy');
+
+    // Generuj plik jako base64
+    const wbout = XLSX.write(workbook, { type: 'base64', bookType: 'xlsx' });
+
     // Generuj datę w nazwie pliku
     const fileName = `raport_${format(options.startDate, 'yyyy-MM-dd')}_${format(options.endDate, 'yyyy-MM-dd')}.xlsx`;
-    const fileUri = `${(FileSystem as any).documentDirectory}${fileName}`;
-    
+    const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+
     // Zapisz do pliku
-    const buffer = await workbook.xlsx.writeBuffer();
-    await FileSystem.writeAsStringAsync(fileUri, Buffer.from(buffer).toString('base64'), {
-      encoding: (FileSystem.EncodingType as any).Base64
+    await FileSystem.writeAsStringAsync(fileUri, wbout, {
+      encoding: FileSystem.EncodingType.Base64,
     });
-    
+
     return fileUri;
   } catch (error) {
     console.error('Błąd generowania raportu Excel:', error);
@@ -239,14 +242,18 @@ async function fetchReportData(options: ExportOptions): Promise<ReportData[]> {
   }
   
   // Transformuj dane
-  return data.map(entry => ({
-    employeeName: entry.employees?.name || 'Nieznany',
-    position: entry.employees?.position || '',
-    date: format(new Date(entry.date), 'dd.MM.yyyy'),
-    hours: entry.hours,
-    status: entry.status,
-    notes: entry.notes
-  }));
+  return data.map(entry => {
+    // Supabase może zwrócić relację jako obiekt lub tablicę
+    const employee = Array.isArray(entry.employees) ? entry.employees[0] : entry.employees;
+    return {
+      employeeName: employee?.name || 'Nieznany',
+      position: employee?.position || '',
+      date: format(new Date(entry.date), 'dd.MM.yyyy'),
+      hours: entry.hours,
+      status: entry.status,
+      notes: entry.notes
+    };
+  });
 }
 
 /**
@@ -282,10 +289,6 @@ export async function shareReport(fileUri: string): Promise<void> {
  * Drukuje raport PDF
  */
 export async function printReport(fileUri: string): Promise<void> {
-  if (!(await Print.isAvailableAsync())) {
-    throw new Error('Drukowanie nie jest dostępne na tym urządzeniu');
-  }
-  
   const base64 = await FileSystem.readAsStringAsync(fileUri, {
     encoding: FileSystem.EncodingType.Base64
   });
@@ -322,8 +325,8 @@ export async function getSavedReports(): Promise<Array<{ uri: string; name: stri
         return {
           uri: fileUri,
           name: file,
-          size: fileInfo.size || 0,
-          modified: new Date(fileInfo.modificationTime || Date.now())
+          size: fileInfo.exists ? (fileInfo.size ?? 0) : 0,
+          modified: new Date(fileInfo.exists ? (fileInfo.modificationTime ?? Date.now()) : Date.now())
         };
       })
   );
