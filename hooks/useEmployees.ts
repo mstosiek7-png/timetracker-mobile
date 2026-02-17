@@ -65,6 +65,7 @@ async function fetchEmployee(id: string) {
  * Tworzy nowego pracownika
  */
 async function createEmployee(employeeData: EmployeeInsert) {
+  // Ensure created_by is not required since it has DEFAULT auth.uid()
   const { data, error } = await supabase
     .from('employees')
     .insert(employeeData)

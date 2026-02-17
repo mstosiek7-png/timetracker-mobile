@@ -33,6 +33,8 @@ import { useTimeEntries } from '../../hooks/useTimeEntries';
 import { useTimeEntryStats } from '../../hooks/useTimeEntries';
 import TimeEntryForm from '../../components/time/TimeEntryForm';
 import BulkTimeEntryModal from '../../components/time/BulkTimeEntryModal';
+import { EmployeeList } from '../../components/employee/EmployeeList';
+import { EmployeeForm } from '../../components/employee/EmployeeForm';
 import { useCreateTimeEntry, useUpdateTimeEntry, useDeleteTimeEntry } from '../../hooks/useTimeEntries';
 import { TimeEntry, TimeEntryInsert } from '../../types/models';
 
@@ -46,6 +48,8 @@ export default function DashboardScreen() {
   const [showTimeEntryModal, setShowTimeEntryModal] = useState(false);
   const [showBulkEntryModal, setShowBulkEntryModal] = useState(false);
   const [selectedTimeEntry, setSelectedTimeEntry] = useState<TimeEntry | null>(null);
+  const [showEmployeeManagement, setShowEmployeeManagement] = useState(false);
+  const [showFullEmployeeList, setShowFullEmployeeList] = useState(false);
 
   // Hooks
   const { 
@@ -359,6 +363,57 @@ export default function DashboardScreen() {
             </View>
           </Card.Content>
         </Card>
+
+        {/* Zarządzanie pracownikami */}
+        <Card style={styles.sectionCard}>
+          <Card.Content>
+            <View style={styles.sectionHeader}>
+              <Title style={styles.sectionTitle}>Zarządzanie pracownikami</Title>
+              <Button
+                mode="text"
+                onPress={() => {
+                  // Przewijanie do sekcji pracowników
+                }}
+                compact
+              >
+                Zobacz wszystkich
+              </Button>
+            </View>
+            
+            <EmployeeList
+              showActions={false}
+              filterActive={true}
+              onEmployeePress={(employee) => {
+                // Można dodać nawigację do szczegółów pracownika
+              }}
+            />
+            
+            <View style={styles.managementActions}>
+              <Button
+                mode="contained"
+                onPress={() => {
+                  // Otwórz modal dodawania pracownika
+                  setShowEmployeeManagement(true);
+                }}
+                style={styles.managementButton}
+                icon="account-plus"
+              >
+                Dodaj pracownika
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => {
+                  // Otwórz pełną listę z akcjami
+                  setShowFullEmployeeList(true);
+                }}
+                style={styles.managementButton}
+                icon="format-list-bulleted"
+              >
+                Zarządzaj listą
+              </Button>
+            </View>
+          </Card.Content>
+        </Card>
       </ScrollView>
 
       {/* Floating Action Button */}
@@ -400,6 +455,41 @@ export default function DashboardScreen() {
         onDismiss={() => setShowBulkEntryModal(false)}
         onSuccess={handleBulkEntrySuccess}
       />
+
+      {/* Modal dla dodawania pracownika */}
+      <EmployeeForm
+        visible={showEmployeeManagement}
+        onClose={() => setShowEmployeeManagement(false)}
+        mode="create"
+      />
+
+      {/* Modal dla pełnej listy pracowników z akcjami */}
+      {showFullEmployeeList && (
+        <Modal
+          visible={showFullEmployeeList}
+          onDismiss={() => setShowFullEmployeeList(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <Card>
+            <Card.Content>
+              <Title style={styles.modalTitle}>Zarządzanie pracownikami</Title>
+              <EmployeeList
+                showActions={true}
+                onEmployeePress={(employee) => {
+                  // Można dodać nawigację do szczegółów pracownika
+                }}
+              />
+              <Button
+                mode="outlined"
+                onPress={() => setShowFullEmployeeList(false)}
+                style={styles.managementButton}
+              >
+                Zamknij
+              </Button>
+            </Card.Content>
+          </Card>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -608,5 +698,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     marginBottom: 16,
+  },
+  managementActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  managementButton: {
+    flex: 1,
   },
 });

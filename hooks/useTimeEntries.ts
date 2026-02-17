@@ -94,6 +94,7 @@ async function fetchTimeEntry(id: string) {
  * Tworzy nowy wpis czasu pracy
  */
 async function createTimeEntry(timeEntryData: TimeEntryInsert) {
+  // created_by has DEFAULT auth.uid() in the database
   const { data, error } = await supabase
     .from('time_entries')
     .insert(timeEntryData)
