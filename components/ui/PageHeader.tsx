@@ -12,8 +12,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, rightAc
   return (
     <View style={styles.container}>
       <View style={styles.textContainer}>
-        <Text style={styles.title}>{title}</Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <Text style={styles.title}>{title}</Text>
       </View>
       {rightAction ? <View>{rightAction}</View> : null}
     </View>

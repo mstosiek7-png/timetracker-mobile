@@ -4,6 +4,7 @@ import { theme, StatusType } from '../../constants/theme';
 
 interface StatusBadgeProps {
   status: StatusType;
+  label?: string;
   size?: 'sm' | 'md';
 }
 
@@ -14,7 +15,7 @@ const STATUS_LABELS: Record<StatusType, string> = {
   fza: 'FZA',
 };
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' }) => {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, size = 'md' }) => {
   const statusColor = theme.colors.statusColors[status];
   const isSm = size === 'sm';
 
@@ -38,7 +39,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
           },
         ]}
       >
-        {STATUS_LABELS[status]}
+        {label ?? STATUS_LABELS[status]}
       </Text>
     </View>
   );

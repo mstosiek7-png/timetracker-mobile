@@ -14,9 +14,13 @@
   - components/ui/SectionTitle.tsx
   - components/ui/EmptyState.tsx
   - components/ui/index.ts (barrel export)
+- Etap 1B: Redesign Dashboard (app/(tabs)/index.tsx)
+  - Nowy układ z komponentami UI z design systemu
+  - Zachowana cała logika biznesowa i Supabase
+  - Wszystkie kolory z theme.ts, flat design
 
 ## 🔄 W trakcie
-- Etap 1B: Redesign ekranów z użyciem nowego design systemu
+- Etap 1B: Redesign pozostałych ekranów (monthly.tsx, reports.tsx, scanner.tsx)
 
 ## 📋 Zaplanowane
 - Etap 2: Kalkulator asfaltu

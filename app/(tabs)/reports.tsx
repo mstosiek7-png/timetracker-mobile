@@ -10,23 +10,14 @@ import {
   Alert,
   ActivityIndicator,
   TouchableOpacity,
-} from 'react-native';
-import {
-  Card,
-  Title,
-  Paragraph,
-  Button,
-  TextInput,
-  RadioButton,
   Text,
-  Divider,
-  Chip,
-  IconButton,
-} from 'react-native-paper';
+  Dimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import {
   generateExcelReport,
@@ -39,6 +30,8 @@ import {
 } from '../../services/export';
 import { useEmployees } from '../../hooks/useEmployees';
 import { useTimeEntries } from '../../hooks/useTimeEntries';
+import { theme } from '../../constants/theme';
+import { Card, PageHeader, SectionTitle, FAB, StatusBadge, StatBox } from '../../components/ui';
 
 // Types
 type ExportFormat = 'excel' | 'pdf';
@@ -50,7 +43,7 @@ type DateRangeType = 'thisMonth' | 'lastMonth' | 'custom';
 
 export default function ReportsScreen() {
   // State
-  const[dateRangeType, setDateRangeType] = useState<DateRangeType>('thisMonth');
+  const [dateRangeType, setDateRangeType] = useState<DateRangeType>('thisMonth');
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
   const [showStartPicker, setShowStartPicker] = useState(false);
@@ -178,7 +171,7 @@ export default function ReportsScreen() {
           {
             text: 'Drukuj (PDF)',
             onPress: () => exportFormat === 'pdf' && printReport(fileUri),
-            style: exportFormat === 'pdf' ? 'default' : 'disabled',
+            style: exportFormat === 'pdf' ? 'default' : 'cancel',
           },
           {
             text: 'Zapisz',
@@ -293,7 +286,7 @@ export default function ReportsScreen() {
   if (isLoadingEmployees || isLoadingEntries) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={theme.colors.accent} />
         <Text style={styles.loadingText}>Ładowanie danych...</Text>
       </View>
     );
@@ -302,250 +295,362 @@ export default function ReportsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Nagłówek */}
-        <Card style={styles.headerCard}>
-          <Card.Content>
-            <Title style={styles.title}>Raporty i eksport</Title>
-            <Paragraph>
-              Generuj raporty czasu pracy w formacie Excel lub PDF
-            </Paragraph>
-          </Card.Content>
-        </Card>
+        {/* 1. PageHeader */}
+        <PageHeader subtitle="asphaltbau" title="Raporty i eksport" />
 
-        {/* Zakres dat */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <Title style={styles.sectionTitle}>Zakres dat</Title>
-            
-            <RadioButton.Group
-              onValueChange={value => setDateRangeType(value as DateRangeType)}
-              value={dateRangeType}
+        {/* 2. StatBoxy podsumowania */}
+        <View style={styles.statsRow}>
+          <StatBox
+            label="Łącznie godzin"
+            value={stats.totalHours}
+            color={theme.colors.accent}
+          />
+          <StatBox
+            label="Wpisy"
+            value={stats.entriesCount.toString()}
+            color={theme.colors.dark}
+          />
+          <StatBox
+            label="Pracownicy"
+            value={stats.employeesCount.toString()}
+            color={theme.colors.dark}
+          />
+        </View>
+
+        {/* 3. Card "Zakres dat" */}
+        <Card style={styles.cardSpacing}>
+          <SectionTitle text="ZAKRES DAT" />
+          
+          <View style={styles.rangeButtons}>
+            <TouchableOpacity
+              style={[
+                styles.rangeButton,
+                dateRangeType === 'thisMonth' && styles.rangeButtonActive,
+              ]}
+              onPress={() => setDateRangeType('thisMonth')}
             >
-              <View style={styles.radioRow}>
-                <RadioButton value="thisMonth" />
-                <Text>Bieżący miesiąc</Text>
-              </View>
-              <View style={styles.radioRow}>
-                <RadioButton value="lastMonth" />
-                <Text>Poprzedni miesiąc</Text>
-              </View>
-              <View style={styles.radioRow}>
-                <RadioButton value="custom" />
-                <Text>Niestandardowy</Text>
-              </View>
-            </RadioButton.Group>
+              <Text
+                style={[
+                  styles.rangeButtonText,
+                  dateRangeType === 'thisMonth' && styles.rangeButtonTextActive,
+                ]}
+              >
+                Bieżący miesiąc
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.rangeButton,
+                dateRangeType === 'lastMonth' && styles.rangeButtonActive,
+              ]}
+              onPress={() => setDateRangeType('lastMonth')}
+            >
+              <Text
+                style={[
+                  styles.rangeButtonText,
+                  dateRangeType === 'lastMonth' && styles.rangeButtonTextActive,
+                ]}
+              >
+                Poprzedni miesiąc
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.rangeButton,
+                dateRangeType === 'custom' && styles.rangeButtonActive,
+              ]}
+              onPress={() => setDateRangeType('custom')}
+            >
+              <Text
+                style={[
+                  styles.rangeButtonText,
+                  dateRangeType === 'custom' && styles.rangeButtonTextActive,
+                ]}
+              >
+                Niestandardowy
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-            <Divider style={styles.divider} />
+          <View style={styles.separator} />
 
-            <View style={styles.dateRow}>
-              <View style={styles.dateInput}>
-                <Text>Od:</Text>
-                <TouchableOpacity
-                  style={styles.dateButton}
-                  onPress={() => setShowStartPicker(true)}
-                >
-                  <Text style={styles.dateText}>
-                    {format(startDate, 'dd.MM.yyyy', { locale: pl })}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.dateInput}>
-                <Text>Do:</Text>
-                <TouchableOpacity
-                  style={styles.dateButton}
-                  onPress={() => setShowEndPicker(true)}
-                >
-                  <Text style={styles.dateText}>
-                    {format(endDate, 'dd.MM.yyyy', { locale: pl })}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+          <View style={styles.dateRow}>
+            <View style={styles.dateInput}>
+              <Text style={styles.dateLabel}>Od:</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowStartPicker(true)}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons
+                  name="calendar"
+                  size={20}
+                  color={theme.colors.dark}
+                />
+                <Text style={styles.dateText}>
+                  {format(startDate, 'dd.MM.yyyy', { locale: pl })}
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            {showStartPicker && (
-              <DateTimePicker
-                value={startDate}
-                mode="date"
-                display="default"
-                onChange={onStartDateChange}
-              />
-            )}
+            <View style={styles.dateInput}>
+              <Text style={styles.dateLabel}>Do:</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowEndPicker(true)}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons
+                  name="calendar"
+                  size={20}
+                  color={theme.colors.dark}
+                />
+                <Text style={styles.dateText}>
+                  {format(endDate, 'dd.MM.yyyy', { locale: pl })}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-            {showEndPicker && (
-              <DateTimePicker
-                value={endDate}
-                mode="date"
-                display="default"
-                onChange={onEndDateChange}
-              />
-            )}
-          </Card.Content>
+          {showStartPicker && (
+            <DateTimePicker
+              value={startDate}
+              mode="date"
+              display="default"
+              onChange={onStartDateChange}
+            />
+          )}
+
+          {showEndPicker && (
+            <DateTimePicker
+              value={endDate}
+              mode="date"
+              display="default"
+              onChange={onEndDateChange}
+            />
+          )}
         </Card>
 
-        {/* Pracownicy */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <View style={styles.sectionHeader}>
-              <Title style={styles.sectionTitle}>Pracownicy</Title>
-              <View style={styles.employeeActions}>
-                <Button mode="outlined" onPress={selectAllEmployees} compact>
-                  Wszyscy
-                </Button>
-                <Button mode="outlined" onPress={clearEmployeeSelection} compact>
-                  Wyczyść
-                </Button>
-              </View>
-            </View>
+        {/* 4. Card "Pracownicy" */}
+        <Card style={styles.cardSpacing}>
+          <SectionTitle text="PRACOWNICY" />
+          
+          <View style={styles.employeeActions}>
+            <TouchableOpacity
+              style={styles.pillButton}
+              onPress={selectAllEmployees}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.pillButtonText}>Wszyscy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.pillButton}
+              onPress={clearEmployeeSelection}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.pillButtonText}>Wyczyść</Text>
+            </TouchableOpacity>
+          </View>
 
-            <Paragraph style={styles.hint}>
-              {selectedEmployees.length === 0
-                ? 'Wszyscy pracownicy (wybierz konkretnych jeśli potrzebujesz)'
-                : `Wybrano: ${selectedEmployees.length} pracowników`}
-            </Paragraph>
+          <Text style={styles.hint}>
+            {selectedEmployees.length === 0
+              ? 'Wszyscy pracownicy (wybierz konkretnych jeśli potrzebujesz)'
+              : `Wybrano: ${selectedEmployees.length} pracowników`}
+          </Text>
 
-            <ScrollView horizontal style={styles.employeeScroll}>
-              <View style={styles.employeeChips}>
-                {employees.map(employee => (
-                  <Chip
-                    key={employee.id}
-                    selected={selectedEmployees.includes(employee.id)}
-                    onPress={() => toggleEmployeeSelection(employee.id)}
-                    style={styles.employeeChip}
+          <ScrollView horizontal style={styles.employeeScroll}>
+            <View style={styles.employeeChips}>
+              {employees.map(employee => (
+                <TouchableOpacity
+                  key={employee.id}
+                  style={[
+                    styles.employeeChip,
+                    selectedEmployees.includes(employee.id) && styles.employeeChipActive,
+                  ]}
+                  onPress={() => toggleEmployeeSelection(employee.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.employeeChipText,
+                      selectedEmployees.includes(employee.id) && styles.employeeChipTextActive,
+                    ]}
                   >
                     {employee.name}
-                  </Chip>
-                ))}
-              </View>
-            </ScrollView>
-          </Card.Content>
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         </Card>
 
-        {/* Opcje eksportu */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <Title style={styles.sectionTitle}>Opcje eksportu</Title>
-            
-            <RadioButton.Group
-              onValueChange={value => setExportFormat(value as ExportFormat)}
-              value={exportFormat}
+        {/* 5. Card "Opcje eksportu" */}
+        <Card style={styles.cardSpacing}>
+          <SectionTitle text="OPCJE EKSPORTU" />
+          
+          <View style={styles.formatButtons}>
+            <TouchableOpacity
+              style={[
+                styles.formatButton,
+                exportFormat === 'excel' && styles.formatButtonActive,
+              ]}
+              onPress={() => setExportFormat('excel')}
+              activeOpacity={0.7}
             >
-              <View style={styles.radioRow}>
-                <RadioButton value="excel" />
-                <Text>Excel (.xlsx) - edytowalny</Text>
-              </View>
-              <View style={styles.radioRow}>
-                <RadioButton value="pdf" />
-                <Text>PDF (.pdf) - do druku</Text>
-              </View>
-            </RadioButton.Group>
-
-            <Divider style={styles.divider} />
-
-            <View style={styles.radioRow}>
-              <RadioButton
-                value={includeNotes ? 'checked' : 'unchecked'}
-                status={includeNotes ? 'checked' : 'unchecked'}
-                onPress={() => setIncludeNotes(!includeNotes)}
+              <MaterialCommunityIcons
+                name="microsoft-excel"
+                size={24}
+                color={exportFormat === 'excel' ? '#FFFFFF' : theme.colors.dark}
               />
-              <Text>Uwzględnij notatki</Text>
-            </View>
-          </Card.Content>
-        </Card>
-
-        {/* Statystyki */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <Title style={styles.sectionTitle}>Podsumowanie</Title>
-            
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Łącznie godzin</Text>
-                <Text style={styles.statValue}>{stats.totalHours}</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Praca</Text>
-                <Text style={styles.statValue}>{stats.workHours}</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Chorobowe</Text>
-                <Text style={styles.statValue}>{stats.sickHours}</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Urlop</Text>
-                <Text style={styles.statValue}>{stats.vacationHours}</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>FZA</Text>
-                <Text style={styles.statValue}>{stats.fzaHours}</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Wpisy</Text>
-                <Text style={styles.statValue}>{stats.entriesCount}</Text>
-              </View>
-            </View>
-          </Card.Content>
-        </Card>
-
-        {/* Przycisk eksportu */}
-        <Button
-          mode="contained"
-          onPress={handleExport}
-          loading={isExporting}
-          disabled={isExporting}
-          style={styles.exportButton}
-          icon="file-export"
-        >
-          {isExporting ? 'Generowanie...' : 'Generuj raport'}
-        </Button>
-
-        {/* Zapisane raporty */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <View style={styles.sectionHeader}>
-              <Title style={styles.sectionTitle}>Zapisane raporty</Title>
-              <Button
-                icon="refresh"
-                mode="text"
-                onPress={loadSavedReports}
-                loading={isLoadingReports}
+              <Text
+                style={[
+                  styles.formatButtonText,
+                  exportFormat === 'excel' && styles.formatButtonTextActive,
+                ]}
               >
-                Odśwież
-              </Button>
-            </View>
+                Excel (.xlsx)
+              </Text>
+              <Text style={styles.formatHint}>Edytowalny</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.formatButton,
+                exportFormat === 'pdf' && styles.formatButtonActive,
+              ]}
+              onPress={() => setExportFormat('pdf')}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons
+                name="file-document"
+                size={24}
+                color={exportFormat === 'pdf' ? '#FFFFFF' : theme.colors.dark}
+              />
+              <Text
+                style={[
+                  styles.formatButtonText,
+                  exportFormat === 'pdf' && styles.formatButtonTextActive,
+                ]}
+              >
+                PDF (.pdf)
+              </Text>
+              <Text style={styles.formatHint}>Do druku</Text>
+            </TouchableOpacity>
+          </View>
 
-            {isLoadingReports ? (
-              <ActivityIndicator style={styles.reportsLoading} />
-            ) : savedReports.length === 0 ? (
-              <Paragraph style={styles.emptyText}>
-                Brak zapisanych raportów
-              </Paragraph>
-            ) : (
-              savedReports.map(report => (
-                <View key={report.uri} style={styles.reportItem}>
-                  <View style={styles.reportInfo}>
-                    <Text style={styles.reportName}>{report.name}</Text>
-                    <Text style={styles.reportDetails}>
-                      {format(report.modified, 'dd.MM.yyyy HH:mm')} •{' '}
-                      {(report.size / 1024).toFixed(1)} KB
-                    </Text>
-                  </View>
-                  <View style={styles.reportActions}>
-                    <IconButton
-                      icon="share-variant"
-                      size={20}
-                      onPress={() => handleShareReport(report.uri)}
-                    />
-                    <IconButton
-                      icon="delete"
-                      size={20}
-                      onPress={() => handleDeleteReport(report.uri, report.name)}
-                    />
-                  </View>
+          <View style={styles.separator} />
+
+          <TouchableOpacity
+            style={styles.optionToggle}
+            onPress={() => setIncludeNotes(!includeNotes)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name={includeNotes ? 'checkbox-marked' : 'checkbox-blank-outline'}
+              size={24}
+              color={includeNotes ? theme.colors.accent : theme.colors.muted}
+            />
+            <Text style={styles.optionToggleText}>Uwzględnij notatki</Text>
+          </TouchableOpacity>
+        </Card>
+
+        {/* 6. Card "Podsumowanie statusów" */}
+        <Card style={styles.cardSpacing}>
+          <SectionTitle text="PODSUMOWANIE STATUSÓW" />
+          
+          <View style={styles.statusSummary}>
+            <View style={styles.statusItem}>
+              <StatusBadge status="work" label="Praca" />
+              <Text style={styles.statusValue}>{stats.workHours} h</Text>
+            </View>
+            <View style={styles.statusItem}>
+              <StatusBadge status="sick" label="Chorobowe" />
+              <Text style={styles.statusValue}>{stats.sickHours} h</Text>
+            </View>
+            <View style={styles.statusItem}>
+              <StatusBadge status="vacation" label="Urlop" />
+              <Text style={styles.statusValue}>{stats.vacationHours} h</Text>
+            </View>
+            <View style={styles.statusItem}>
+              <StatusBadge status="fza" label="FZA" />
+              <Text style={styles.statusValue}>{stats.fzaHours} h</Text>
+            </View>
+          </View>
+        </Card>
+
+        {/* 7. Przycisk "Generuj raport" - FAB pełna szerokość */}
+        <View style={styles.fabContainer}>
+          <FAB
+            label={isExporting ? 'Generowanie...' : 'Generuj raport'}
+            onPress={handleExport}
+            disabled={isExporting}
+            fullWidth
+          />
+        </View>
+
+        {/* 8. Card "Zapisane raporty" */}
+        <Card style={styles.cardSpacing}>
+          <View style={styles.sectionHeader}>
+            <SectionTitle text="ZAPISANE RAPORTY" />
+            <TouchableOpacity
+              onPress={loadSavedReports}
+              disabled={isLoadingReports}
+              activeOpacity={0.7}
+              style={styles.refreshButton}
+            >
+              <MaterialCommunityIcons
+                name="refresh"
+                size={20}
+                color={theme.colors.accent}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {isLoadingReports ? (
+            <ActivityIndicator style={styles.reportsLoading} color={theme.colors.accent} />
+          ) : savedReports.length === 0 ? (
+            <Text style={styles.emptyText}>
+              Brak zapisanych raportów
+            </Text>
+          ) : (
+            savedReports.map(report => (
+              <View key={report.uri} style={styles.reportItem}>
+                <View style={styles.reportInfo}>
+                  <Text style={styles.reportName}>
+                    {report.name}
+                  </Text>
+                  <Text style={styles.reportDetails}>
+                    {format(report.modified, 'dd.MM.yyyy HH:mm')} •{' '}
+                    {(report.size / 1024).toFixed(1)} KB
+                  </Text>
                 </View>
-              ))
-            )}
-          </Card.Content>
+                <View style={styles.reportActions}>
+                  <TouchableOpacity
+                    onPress={() => handleShareReport(report.uri)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name="share-variant"
+                      size={20}
+                      color={theme.colors.dark}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteReport(report.uri, report.name)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name="delete"
+                      size={20}
+                      color={theme.colors.dark}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
         </Card>
       </ScrollView>
     </SafeAreaView>
@@ -556,84 +661,134 @@ export default function ReportsScreen() {
 // Styles
 // =====================================================
 
+const { width } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 100,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  headerCard: {
-    marginBottom: 16,
-    backgroundColor: '#2196f3',
-  },
-  title: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  sectionCard: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
+    marginTop: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.muted,
     fontWeight: '600',
-    marginBottom: 12,
   },
-  sectionHeader: {
+
+  // ── Stats Row ──
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
-  radioRow: {
+
+  // ── Card Spacing ──
+  cardSpacing: {
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+  },
+
+  // ── Date Range ──
+  rangeButtons: {
     flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  rangeButton: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     alignItems: 'center',
-    marginVertical: 4,
   },
-  divider: {
-    marginVertical: 12,
+  rangeButtonActive: {
+    backgroundColor: theme.colors.dark,
+    borderColor: theme.colors.dark,
   },
+  rangeButtonText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.dark,
+  },
+  rangeButtonTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // ── Separator ──
+  separator: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: theme.spacing.lg,
+  },
+
+  // ── Date Picker ──
   dateRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: theme.spacing.md,
   },
   dateInput: {
     flex: 1,
-    marginHorizontal: 4,
+  },
+  dateLabel: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.dark,
+    marginBottom: theme.spacing.xs,
   },
   dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.background,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.md,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    padding: 12,
-    marginTop: 4,
-    backgroundColor: 'white',
+    borderColor: theme.colors.border,
   },
   dateText: {
-    fontSize: 16,
-    textAlign: 'center',
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.dark,
   },
+
+  // ── Employee Selection ──
   employeeActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  pillButton: {
+    backgroundColor: theme.colors.background,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  pillButtonText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.dark,
   },
   hint: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.muted,
+    fontStyle: 'italic',
+    marginBottom: theme.spacing.md,
   },
   employeeScroll: {
     maxHeight: 120,
@@ -641,69 +796,147 @@ const styles = StyleSheet.create({
   employeeChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: theme.spacing.sm,
   },
   employeeChip: {
-    margin: 2,
+    backgroundColor: theme.colors.background,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
-  statsGrid: {
+  employeeChipActive: {
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
+  },
+  employeeChipText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.dark,
+  },
+  employeeChipTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // ── Export Format ──
+  formatButtons: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 8,
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
   },
-  statItem: {
-    width: '48%',
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+  formatButton: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     alignItems: 'center',
+    gap: theme.spacing.sm,
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
+  formatButtonActive: {
+    backgroundColor: theme.colors.dark,
+    borderColor: theme.colors.dark,
   },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2196f3',
+  formatButtonText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.dark,
+    textAlign: 'center',
   },
-  exportButton: {
-    marginVertical: 24,
-    paddingVertical: 10,
+  formatButtonTextActive: {
+    color: '#FFFFFF',
   },
+  formatHint: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.muted,
+    fontStyle: 'italic',
+  },
+
+  // ── Option Toggle ──
+  optionToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  optionToggleText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.dark,
+  },
+
+  // ── Status Summary ──
+  statusSummary: {
+    gap: theme.spacing.md,
+  },
+  statusItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  statusValue: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.dark,
+  },
+
+  // ── FAB ──
+  fabContainer: {
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+
+  // ── Section Header ──
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  refreshButton: {
+    padding: theme.spacing.xs,
+  },
+
+  // ── Saved Reports ──
   reportsLoading: {
-    marginVertical: 20,
+    marginVertical: theme.spacing.xl,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#666',
+    color: theme.colors.muted,
     fontStyle: 'italic',
-    paddingVertical: 20,
+    paddingVertical: theme.spacing.xl,
+    fontSize: theme.fontSize.md,
   },
   reportItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: theme.colors.border,
   },
   reportInfo: {
     flex: 1,
   },
   reportName: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 2,
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.dark,
+    marginBottom: theme.spacing.xs,
   },
   reportDetails: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.muted,
   },
   reportActions: {
     flexDirection: 'row',
+    gap: theme.spacing.md,
   },
 });
