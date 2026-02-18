@@ -18,13 +18,18 @@
   - Nowy układ z komponentami UI z design systemu
   - Zachowana cała logika biznesowa i Supabase
   - Wszystkie kolory z theme.ts, flat design
-
-## 🔄 W trakcie
 - Etap 1B: Redesign pozostałych ekranów (monthly.tsx, reports.tsx, scanner.tsx)
+- Etap 2: Kalkulator asfaltu (app/(tabs)/calculator.tsx)
+- Etap 3: Migracja bazy danych dla modułu Baustellen
+  - Tabele: construction_sites, asphalt_types, deliveries
+  - Funkcje PostgreSQL: get_site_summary, get_site_statistics, get_site_deliveries
+  - RLS policies dla wszystkich tabel
+  - Storage bucket: delivery-photos (10MB, public read)
+  - Typy TypeScript w types/models.ts
 
 ## 📋 Zaplanowane
-- Etap 2: Kalkulator asfaltu
-- Etap 3: Moduł Baustellen
 
 ## ❌ Blokery
 - (brak)
+
+

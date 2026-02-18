@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { theme } from '../../constants/theme';
 
 export default function TabsLayout() {
@@ -60,6 +60,18 @@ export default function TabsLayout() {
             <MaterialCommunityIcons name="camera" size={size} color={color} />
           ),
           headerTitle: 'Skaner Dokumentów',
+        }}
+      />
+
+      {/* Calculator Tab */}
+      <Tabs.Screen
+        name="calculator"
+        options={{
+          title: 'Kalkulator',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calculator-outline" size={size} color={color} />
+          ),
+          headerTitle: 'Kalkulator Asfaltu',
         }}
       />
 
