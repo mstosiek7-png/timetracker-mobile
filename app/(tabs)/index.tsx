@@ -205,8 +205,7 @@ export default function DashboardScreen() {
     );
   }
 
-  const activeEmployeesList = employees.filter((emp) => emp.active);
-  const activeEmployeesCount = activeEmployeesList.length;
+  const activeEmployeesCount = employees.filter((emp) => emp.active).length;
   const recentEntries = timeEntries.slice(0, 5);
   const today = format(new Date(), 'dd.MM.yyyy', { locale: pl });
 
@@ -339,20 +338,30 @@ export default function DashboardScreen() {
           )}
         </Card>
 
-        {/* 6. Aktywni pracownicy */}
+        {/* 6. Wszyscy pracownicy — kliknięcie otwiera widok miesięczny */}
         <Card>
-          <SectionTitle text="AKTYWNI PRACOWNICY" />
-          {activeEmployeesList.length === 0 ? (
-            <EmptyState icon="👥" title="Brak aktywnych pracowników" />
+          <SectionTitle text="PRACOWNICY" />
+          {employees.length === 0 ? (
+            <EmptyState icon="👥" title="Brak pracowników" />
           ) : (
             <View style={styles.pillsContainer}>
-              {activeEmployeesList.slice(0, 6).map((emp) => (
-                <View key={emp.id} style={styles.pill}>
+              {employees.map((emp) => (
+                <TouchableOpacity
+                  key={emp.id}
+                  style={styles.pill}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(tabs)/monthly',
+                      params: { employeeId: emp.id },
+                    })
+                  }
+                  activeOpacity={0.7}
+                >
                   <View style={styles.pillAvatar}>
                     <Text style={styles.pillInitials}>{getInitials(emp.name)}</Text>
                   </View>
                   <Text style={styles.pillName}>{emp.name}</Text>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
@@ -361,18 +370,28 @@ export default function DashboardScreen() {
         {/* 7. Zarządzanie pracownikami */}
         <Card>
           <SectionTitle
-            text="PRACOWNICY"
+            text="ZARZĄDZANIE PRACOWNIKAMI"
             rightText="Zobacz wszystkich"
             onRightPress={() => setShowFullEmployeeList(true)}
           />
-          {employees.filter((emp) => emp.active).slice(0, 2).map((emp) => (
-            <View key={emp.id} style={styles.employeeCard}>
+          {employees.slice(0, 2).map((emp) => (
+            <TouchableOpacity
+              key={emp.id}
+              style={styles.employeeCard}
+              onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/monthly',
+                  params: { employeeId: emp.id },
+                })
+              }
+              activeOpacity={0.7}
+            >
               <View style={styles.employeeInfo}>
                 <Text style={styles.employeeName}>{emp.name}</Text>
                 <Text style={styles.employeePosition}>{emp.position || '—'}</Text>
               </View>
-              <StatusBadge status="work" size="sm" />
-            </View>
+              <StatusBadge status={emp.active ? 'work' : 'fza'} size="sm" />
+            </TouchableOpacity>
           ))}
           <View style={styles.managementActions}>
             <TouchableOpacity

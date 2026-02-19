@@ -39,38 +39,29 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Monthly View Tab */}
+      {/* Monthly View — dostępny przez nawigację po kliknięciu pracownika, ukryty z tab baru */}
       <Tabs.Screen
         name="monthly"
         options={{
-          title: 'Miesięczny',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="calendar-month" size={size} color={color} />
-          ),
+          href: null,
           headerTitle: 'Widok Miesięczny',
         }}
       />
 
-      {/* Scanner Tab */}
+      {/* Scanner — dostępny przy dodawaniu dostaw, ukryty z tab baru */}
       <Tabs.Screen
         name="scanner"
         options={{
-          title: 'Skaner',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="camera" size={size} color={color} />
-          ),
+          href: null,
           headerTitle: 'Skaner Dokumentów',
         }}
       />
 
-      {/* Baustellen Tab */}
+      {/* Baustellen — ukryty z tab baru */}
       <Tabs.Screen
         name="baustellen"
         options={{
-          title: 'Baustellen',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="construct-outline" size={size} color={color} />
-          ),
+          href: null,
           headerTitle: 'Lista Budów',
         }}
       />

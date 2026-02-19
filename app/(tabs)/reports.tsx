@@ -563,19 +563,19 @@ export default function ReportsScreen() {
           <View style={styles.statusSummary}>
             <View style={styles.statusItem}>
               <StatusBadge status="work" label="Praca" />
-              <Text style={styles.statusValue}>{stats.workHours} h</Text>
+              <Text style={[styles.statusValue, { color: theme.colors.statusColors.work.text }]}>{stats.workHours} h</Text>
             </View>
             <View style={styles.statusItem}>
               <StatusBadge status="sick" label="Chorobowe" />
-              <Text style={styles.statusValue}>{stats.sickHours} h</Text>
+              <Text style={[styles.statusValue, { color: theme.colors.statusColors.sick.text }]}>{stats.sickHours} h</Text>
             </View>
             <View style={styles.statusItem}>
               <StatusBadge status="vacation" label="Urlop" />
-              <Text style={styles.statusValue}>{stats.vacationHours} h</Text>
+              <Text style={[styles.statusValue, { color: theme.colors.statusColors.vacation.text }]}>{stats.vacationHours} h</Text>
             </View>
             <View style={styles.statusItem}>
               <StatusBadge status="fza" label="FZA" />
-              <Text style={styles.statusValue}>{stats.fzaHours} h</Text>
+              <Text style={[styles.statusValue, { color: theme.colors.statusColors.fza.text }]}>{stats.fzaHours} h</Text>
             </View>
           </View>
         </Card>
@@ -714,8 +714,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rangeButtonActive: {
-    backgroundColor: theme.colors.dark,
-    borderColor: theme.colors.dark,
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
   },
   rangeButtonText: {
     fontSize: theme.fontSize.sm,
@@ -837,8 +837,8 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   formatButtonActive: {
-    backgroundColor: theme.colors.dark,
-    borderColor: theme.colors.dark,
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
   },
   formatButtonText: {
     fontSize: theme.fontSize.md,

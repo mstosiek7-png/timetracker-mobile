@@ -19,6 +19,8 @@ import { format, parseISO, eachDayOfInterval, startOfMonth, endOfMonth,
          startOfWeek, endOfWeek } from 'date-fns';
 import { pl } from 'date-fns/locale';
 
+import { useLocalSearchParams } from 'expo-router';
+
 import { useEmployees } from '../../hooks/useEmployees';
 import { useMonthlySummary } from '../../hooks/useTimeEntries';
 import { TimeEntryStatus } from '../../types/models';
@@ -45,9 +47,12 @@ interface DayCell {
 // =====================================================
 
 export default function MonthlyViewScreen() {
+  // URL params — employeeId przekazywane po kliknięciu pracownika w dashboardzie
+  const { employeeId: paramEmployeeId } = useLocalSearchParams<{ employeeId?: string }>();
+
   // State
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(paramEmployeeId ?? '');
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [viewMode, setViewMode] = useState<'calendar' | 'summary'>('calendar');
 
