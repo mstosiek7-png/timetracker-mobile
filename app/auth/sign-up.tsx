@@ -64,26 +64,29 @@ export default function SignUpScreen() {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password: password.trim(),
-        options: {
-          emailRedirectTo: `${process.env.EXPO_PUBLIC_APP_SCHEME}://`, // URL powrotu po potwierdzeniu emaila
-        },
       });
 
       if (error) throw error;
 
-      Alert.alert(
-        'Sprawdź email',
-        'Link potwierdzający został wysłany na Twój adres email. Sprawdź skrzynkę i kliknij link, aby aktywować konto.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/auth/sign-in'),
-          },
-        ]
-      );
+      // Gdy "Enable email confirmations" jest wyłączone w Supabase Dashboard,
+      // signUp od razu zwraca aktywną sesję – przechodzimy do aplikacji.
+      if (data.session) {
+        router.replace('/(tabs)');
+        return;
+      }
+
+      // Fallback: próba bezpośredniego logowania tymi samymi danymi
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      });
+
+      if (signInError) throw signInError;
+
+      router.replace('/(tabs)');
     } catch (error: any) {
       console.error('Błąd rejestracji:', error);
       Alert.alert(
