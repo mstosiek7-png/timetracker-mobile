@@ -23,6 +23,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import { theme } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
@@ -222,7 +224,16 @@ export default function DashboardScreen() {
         title="TimeTracker"
         subtitle="asphaltbau"
         rightAction={
-          <Text style={styles.headerDate}>{today}</Text>
+          <View style={styles.headerRightContainer}>
+            <Text style={styles.headerDate}>{today}</Text>
+            <TouchableOpacity 
+              style={styles.loginButton}
+              onPress={() => router.push('/auth/sign-in')}
+            >
+              <Ionicons name="log-in-outline" size={20} color={theme.colors.accent} />
+              <Text style={styles.loginButtonText}>Logowanie</Text>
+            </TouchableOpacity>
+          </View>
         }
       />
 
@@ -687,5 +698,26 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: theme.colors.mid,
+  },
+
+  // Header right container
+  headerRightContainer: {
+    alignItems: 'flex-end',
+    gap: theme.spacing.xs,
+  },
+  loginButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+    borderRadius: theme.radius.sm,
+  },
+  loginButtonText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '700',
+    color: theme.colors.accent,
   },
 });

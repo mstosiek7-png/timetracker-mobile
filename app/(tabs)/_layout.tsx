@@ -63,6 +63,18 @@ export default function TabsLayout() {
         }}
       />
 
+      {/* Baustellen Tab */}
+      <Tabs.Screen
+        name="baustellen"
+        options={{
+          title: 'Baustellen',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="construct-outline" size={size} color={color} />
+          ),
+          headerTitle: 'Lista Budów',
+        }}
+      />
+
       {/* Calculator Tab */}
       <Tabs.Screen
         name="calculator"

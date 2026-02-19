@@ -14,6 +14,10 @@ export const theme = {
     mid: '#4A4A4A',
     muted: '#9A9A9A',
     border: '#E8E0D0',
+    success: '#2E7D5E',
+    successLight: '#E8F5EF',
+    error: '#C0392B',
+    errorLight: '#FDECEA',
     statusColors: {
       work: { bg: '#E8F5EF', text: '#2E7D5E' },
       sick: { bg: '#FDECEA', text: '#C0392B' },

@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS construction_sites (
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  created_by UUID REFERENCES auth.users(id),
+  created_by UUID REFERENCES auth.users(id) DEFAULT NULL,
   
   CONSTRAINT construction_sites_name_not_empty CHECK (LENGTH(TRIM(name)) > 0)
 );
@@ -70,6 +70,14 @@ CREATE INDEX IF NOT EXISTS idx_deliveries_supplier ON deliveries(supplier);
 -- =====================================================
 -- TRIGGERS - Updated_at automation
 -- =====================================================
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 DROP TRIGGER IF EXISTS construction_sites_updated_at ON construction_sites;
 CREATE TRIGGER construction_sites_updated_at
   BEFORE UPDATE ON construction_sites
@@ -93,26 +101,36 @@ ALTER TABLE asphalt_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE deliveries ENABLE ROW LEVEL SECURITY;
 
 -- Policy: construction_sites - authenticated users can SELECT, INSERT, UPDATE
+-- Anonimowi użytkownicy mogą tylko INSERT z created_by = NULL
 DROP POLICY IF EXISTS "Enable select for authenticated users" ON construction_sites;
 CREATE POLICY "Enable select for authenticated users" ON construction_sites
   FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Enable insert for anon users" ON construction_sites;
+CREATE POLICY "Enable insert for anon users" ON construction_sites
+  FOR INSERT TO anon WITH CHECK (created_by IS NULL);
+
 DROP POLICY IF EXISTS "Enable insert for authenticated users" ON construction_sites;
 CREATE POLICY "Enable insert for authenticated users" ON construction_sites
-  FOR INSERT TO authenticated WITH CHECK (true);
+  FOR INSERT TO authenticated WITH CHECK (created_by IS NULL OR created_by = auth.uid());
 
 DROP POLICY IF EXISTS "Enable update for authenticated users" ON construction_sites;
 CREATE POLICY "Enable update for authenticated users" ON construction_sites
   FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
 -- Policy: asphalt_types - authenticated users can SELECT, INSERT, DELETE
+-- Anonimowi użytkownicy mogą tylko INSERT
 DROP POLICY IF EXISTS "Enable select for authenticated users" ON asphalt_types;
 CREATE POLICY "Enable select for authenticated users" ON asphalt_types
   FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Enable insert for anon users" ON asphalt_types;
+CREATE POLICY "Enable insert for anon users" ON asphalt_types
+  FOR INSERT TO anon WITH CHECK (created_by IS NULL);
+
 DROP POLICY IF EXISTS "Enable insert for authenticated users" ON asphalt_types;
 CREATE POLICY "Enable insert for authenticated users" ON asphalt_types
-  FOR INSERT TO authenticated WITH CHECK (true);
+  FOR INSERT TO authenticated WITH CHECK (created_by IS NULL OR created_by = auth.uid());
 
 DROP POLICY IF EXISTS "Enable delete for authenticated users" ON asphalt_types;
 CREATE POLICY "Enable delete for authenticated users" ON asphalt_types
@@ -132,7 +150,7 @@ VALUES (
   'delivery-photos',
   true,
   10485760, -- 10MB
-  AR['image/jpeg', 'image/png', 'image/webp']
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
 ) ON CONFLICT (id) DO UPDATE SET
   public = EXCLUDED.public,
   file_size_limit = EXCLUDED.file_size_limit,
