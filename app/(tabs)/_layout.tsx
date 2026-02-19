@@ -57,11 +57,14 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Baustellen — ukryty z tab baru */}
+      {/* Baustellen Tab */}
       <Tabs.Screen
         name="baustellen"
         options={{
-          href: null,
+          title: 'Baustellen',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="construct-outline" size={size} color={color} />
+          ),
           headerTitle: 'Lista Budów',
         }}
       />
