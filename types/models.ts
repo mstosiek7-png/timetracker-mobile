@@ -131,9 +131,114 @@ export interface DailySummary {
 }
 
 // =====================================================
+// Baustellen Module
+// =====================================================
+
+export type ConstructionSiteStatus = 'active' | 'completed';
+
+export interface ConstructionSite {
+  id: string;
+  name: string;
+  address: string | null;
+  status: ConstructionSiteStatus;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+export type ConstructionSiteInsert = Omit<ConstructionSite, 'id' | 'created_at' | 'updated_at' | 'created_by'>;
+export type ConstructionSiteUpdate = Partial<ConstructionSiteInsert>;
+
+export interface AsphaltType {
+  id: string;
+  site_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+export type AsphaltTypeInsert = Omit<AsphaltType, 'id' | 'created_at' | 'updated_at' | 'created_by'>;
+export type AsphaltTypeUpdate = Partial<AsphaltTypeInsert>;
+
+export interface Delivery {
+  id: string;
+  site_id: string;
+  asphalt_type_id: string | null;
+  tons: number;
+  lieferschein_nr: string | null;
+  supplier: string | null;
+  delivery_time: string;
+  photo_url: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+export type DeliveryInsert = Omit<Delivery, 'id' | 'created_at' | 'updated_at' | 'created_by'>;
+export type DeliveryUpdate = Partial<DeliveryInsert>;
+
+// Views
+export interface SiteSummary {
+  asphalt_type_name: string;
+  delivery_count: number;
+  total_tons: number;
+}
+
+export interface SiteStatistics {
+  total_tons: number;
+  delivery_count: number;
+  asphalt_type_count: number;
+  last_delivery_date: string | null;
+  last_delivery_tons: number | null;
+}
+
+export interface SiteDelivery {
+  delivery_id: string;
+  asphalt_type_name: string | null;
+  tons: number;
+  lieferschein_nr: string | null;
+  supplier: string | null;
+  delivery_time: string;
+  photo_url: string | null;
+  created_at: string;
+}
+
+// Aggregate views
+export interface ActiveSiteSummary {
+  id: string;
+  name: string;
+  address: string | null;
+  status: ConstructionSiteStatus;
+  created_at: string;
+  asphalt_types_count: number;
+  deliveries_count: number;
+  total_tons: number;
+  last_delivery_date: string | null;
+}
+
+export interface DeliveryFull {
+  id: string;
+  site_id: string;
+  site_name: string;
+  asphalt_type_id: string | null;
+  asphalt_type_name: string | null;
+  tons: number;
+  lieferschein_nr: string | null;
+  supplier: string | null;
+  delivery_time: string;
+  photo_url: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+// =====================================================
 // Employee with relations
 // =====================================================
 
 export interface EmployeeWithEntries extends Employee {
   time_entries: TimeEntry[];
 }
+
+

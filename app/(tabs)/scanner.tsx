@@ -1,5 +1,5 @@
 // =====================================================
-// Scanner Screen - Document OCR Scanning (Simplified)
+// Scanner Screen - Document OCR Scanning
 // =====================================================
 
 import React, { useState } from 'react';
@@ -11,20 +11,12 @@ import {
   ScrollView,
   Image,
   Dimensions,
-} from 'react-native';
-import {
-  Card,
-  Title,
-  Paragraph,
-  Button,
+  TouchableOpacity,
   Text,
-  Divider,
-  Chip,
-  IconButton,
   Modal,
-  Portal,
-} from 'react-native-paper';
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
 import { OCRResult } from '../../services/ocr';
@@ -35,6 +27,8 @@ import {
   useDeleteDocument,
 } from '../../hooks/useOCR';
 import { Document } from '../../types/models';
+import { theme } from '../../constants/theme';
+import { Card, PageHeader, SectionTitle, FAB } from '../../components/ui';
 
 // Types
 type ScanSource = 'camera' | 'gallery';
@@ -46,7 +40,7 @@ type ProcessingStatus = 'idle' | 'scanning' | 'completed' | 'error';
 
 export default function ScannerScreen() {
   // State
-  const[scanSource, setScanSource] = useState<ScanSource>('camera');
+  const [scanSource, setScanSource] = useState<ScanSource>('camera');
   const [useOpenAI, setUseOpenAI] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus>('idle');
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -203,30 +197,31 @@ export default function ScannerScreen() {
     if (!showResultModal || !ocrResult) return null;
 
     return (
-      <Portal>
-        <Modal
-          visible={showResultModal}
-          onDismiss={() => setShowResultModal(false)}
-          contentContainerStyle={styles.resultModal}
-        >
-          <ScrollView>
-            <Card style={styles.resultCard}>
-              <Card.Content>
-                <View style={styles.modalHeader}>
-                  <Title style={styles.modalTitle}>Wynik skanowania</Title>
-                  <IconButton
-                    icon="close"
-                    size={24}
-                    onPress={() => setShowResultModal(false)}
-                  />
-                </View>
+      <Modal
+        visible={showResultModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowResultModal(false)}
+      >
+        <View style={styles.resultModalOverlay}>
+          <View style={styles.resultModalContainer}>
+            <View style={styles.resultModalHeader}>
+              <Text style={styles.resultModalTitle}>Wynik skanowania</Text>
+              <TouchableOpacity onPress={() => setShowResultModal(false)}>
+                <MaterialCommunityIcons
+                  name="close"
+                  size={24}
+                  color={theme.colors.dark}
+                />
+              </TouchableOpacity>
+            </View>
 
-                <Divider style={styles.divider} />
-
+            <ScrollView style={styles.resultModalContent}>
+              <Card style={styles.resultCard}>
                 {/* Przetworzone dane */}
                 {ocrResult.processedData && (
                   <>
-                    <Title style={styles.sectionTitle}>Wydobyte dane</Title>
+                    <SectionTitle text="Wydobyte dane" />
                     
                     {ocrResult.processedData.supplierName && (
                       <View style={styles.dataRow}>
@@ -264,50 +259,57 @@ export default function ScannerScreen() {
                       </View>
                     )}
 
-                    <Divider style={styles.divider} />
+                    <View style={styles.separator} />
                   </>
                 )}
 
                 {/* Surowy tekst */}
-                <Title style={styles.sectionTitle}>Rozpoznany tekst</Title>
-                <Card style={styles.textCard}>
-                  <Card.Content>
-                    <ScrollView style={styles.textScroll}>
-                      <Text style={styles.ocrText}>{ocrResult.text}</Text>
-                    </ScrollView>
-                  </Card.Content>
-                </Card>
-
-                <View style={styles.statsRow}>
-                  <Chip icon="chart-line" style={styles.confidenceChip}>
-                    Dokładność: {(ocrResult.confidence * 100).toFixed(1)}%
-                  </Chip>
+                <SectionTitle text="Rozpoznany tekst" />
+                <View style={styles.textCard}>
+                  <ScrollView style={styles.textScroll}>
+                    <Text style={styles.ocrText}>{ocrResult.text}</Text>
+                  </ScrollView>
                 </View>
 
-                <Divider style={styles.divider} />
+                <View style={styles.statsRow}>
+                  <View style={styles.confidenceChip}>
+                    <MaterialCommunityIcons
+                      name="chart-line"
+                      size={16}
+                      color={theme.colors.accent}
+                    />
+                    <Text style={styles.confidenceText}>
+                      Dokładność: {(ocrResult.confidence * 100).toFixed(1)}%
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.separator} />
 
                 {/* Akcje */}
                 <View style={styles.modalActions}>
-                  <Button
-                    mode="outlined"
+                  <TouchableOpacity
+                    style={styles.modalActionButton}
                     onPress={handleScanNew}
-                    style={styles.actionButton}
+                    activeOpacity={0.7}
                   >
-                    Nowe skanowanie
-                  </Button>
-                  <Button
-                    mode="contained"
+                    <Text style={styles.modalActionText}>Nowe skanowanie</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalActionButton, styles.modalActionButtonPrimary]}
                     onPress={() => setShowResultModal(false)}
-                    style={styles.actionButton}
+                    activeOpacity={0.7}
                   >
-                    Zamknij
-                  </Button>
+                    <Text style={[styles.modalActionText, styles.modalActionTextPrimary]}>
+                      Zamknij
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              </Card.Content>
-            </Card>
-          </ScrollView>
-        </Modal>
-      </Portal>
+              </Card>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     );
   };
 
@@ -321,23 +323,16 @@ export default function ScannerScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Nagłówek */}
-        <Card style={styles.headerCard}>
-          <Card.Content>
-            <Title style={styles.title}>Skaner dokumentów</Title>
-            <Paragraph>
-              Skanuj faktury i dokumenty dostaw za pomocą OCR
-            </Paragraph>
-          </Card.Content>
-        </Card>
+        {/* 1. PageHeader */}
+        <PageHeader title="Skaner OCR" />
 
         {/* Status skanowania */}
         {processingStatus !== 'idle' && (
           <Card style={styles.statusCard}>
-            <Card.Content style={styles.statusContent}>
+            <View style={styles.statusContent}>
               <ActivityIndicator
                 size="small"
-                color="#2196f3"
+                color={theme.colors.accent}
                 animating={processingStatus === 'scanning'}
               />
               <Text style={styles.statusText}>
@@ -345,162 +340,242 @@ export default function ScannerScreen() {
                 {processingStatus === 'completed' && 'Skanowanie zakończone!'}
                 {processingStatus === 'error' && 'Błąd skanowania'}
               </Text>
-            </Card.Content>
+            </View>
           </Card>
         )}
 
         {/* Wybór źródła */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <Title style={styles.sectionTitle}>Źródło dokumentu</Title>
-            
-            <View style={styles.sourceButtons}>
-              <Button
-                mode={scanSource === 'camera' ? 'contained' : 'outlined'}
-                onPress={() => setScanSource('camera')}
-                style={styles.sourceButton}
-                icon="camera"
-                disabled={isProcessing}
+        <Card style={styles.cardSpacing}>
+          <SectionTitle text="Źródło dokumentu" />
+          
+          <View style={styles.sourceButtons}>
+            <TouchableOpacity
+              style={[
+                styles.sourceButton,
+                scanSource === 'camera' && styles.sourceButtonActive,
+              ]}
+              onPress={() => setScanSource('camera')}
+              disabled={isProcessing}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons
+                name="camera"
+                size={24}
+                color={scanSource === 'camera' ? '#FFFFFF' : theme.colors.dark}
+              />
+              <Text
+                style={[
+                  styles.sourceButtonText,
+                  scanSource === 'camera' && styles.sourceButtonTextActive,
+                ]}
               >
                 Aparat
-              </Button>
-              
-              <Button
-                mode={scanSource === 'gallery' ? 'contained' : 'outlined'}
-                onPress={() => setScanSource('gallery')}
-                style={styles.sourceButton}
-                icon="image"
-                disabled={isProcessing}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.sourceButton,
+                scanSource === 'gallery' && styles.sourceButtonActive,
+              ]}
+              onPress={() => setScanSource('gallery')}
+              disabled={isProcessing}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons
+                name="image"
+                size={24}
+                color={scanSource === 'gallery' ? '#FFFFFF' : theme.colors.dark}
+              />
+              <Text
+                style={[
+                  styles.sourceButtonText,
+                  scanSource === 'gallery' && styles.sourceButtonTextActive,
+                ]}
               >
                 Galeria
-              </Button>
-            </View>
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-            <Divider style={styles.divider} />
+          <View style={styles.separator} />
 
-            {/* Opcje OCR */}
-            <Title style={styles.sectionTitle}>Opcje OCR</Title>
-            
-            <View style={styles.optionRow}>
-              <Chip
-                selected={useOpenAI}
-                onPress={() => !isProcessing && setUseOpenAI(!useOpenAI)}
-                icon={useOpenAI ? 'check' : 'robot'}
-                style={styles.optionChip}
-                disabled={isProcessing}
+          {/* Opcje OCR */}
+          <SectionTitle text="Opcje OCR" />
+          
+          <View style={styles.optionRow}>
+            <TouchableOpacity
+              style={[
+                styles.optionToggle,
+                useOpenAI && styles.optionToggleActive,
+              ]}
+              onPress={() => !isProcessing && setUseOpenAI(!useOpenAI)}
+              disabled={isProcessing}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons
+                name={useOpenAI ? 'robot' : 'robot-outline'}
+                size={20}
+                color={useOpenAI ? '#FFFFFF' : theme.colors.dark}
+              />
+              <Text
+                style={[
+                  styles.optionToggleText,
+                  useOpenAI && styles.optionToggleTextActive,
+                ]}
               >
                 {useOpenAI ? 'OpenAI (zaawansowane)' : 'Tesseract (podstawowe)'}
-              </Chip>
-              
-              {useOpenAI && (
-                <Chip icon="information" style={styles.infoChip}>
-                  Wymaga klucza API
-                </Chip>
-              )}
-            </View>
-
-            <Paragraph style={styles.hint}>
-              {useOpenAI
-                ? 'OpenAI Vision API zapewnia lepszą dokładność, ale wymaga klucza API'
-                : 'Tesseract działa offline, ale może być mniej dokładny'}
-            </Paragraph>
-          </Card.Content>
-        </Card>
-
-        {/* Przyciski akcji */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <Title style={styles.sectionTitle}>Skanuj dokument</Title>
+              </Text>
+            </TouchableOpacity>
             
-            <View style={styles.actionButtons}>
-              {scanSource === 'camera' ? (
-                <Button
-                  mode="contained"
-                  onPress={handleTakePhoto}
-                  style={styles.scanButton}
-                  icon="camera"
-                  disabled={isProcessing}
-                  loading={isProcessing}
-                >
-                  {isProcessing ? 'Przetwarzanie...' : 'Zrób zdjęcie'}
-                </Button>
-              ) : (
-                <Button
-                  mode="contained"
-                  onPress={handlePickFromGallery}
-                  style={styles.scanButton}
-                  icon="image"
-                  disabled={isProcessing}
-                  loading={isProcessing}
-                >
-                  {isProcessing ? 'Przetwarzanie...' : 'Wybierz z galerii'}
-                </Button>
-              )}
-            </View>
-
-            {imageUri && (
-              <>
-                <Divider style={styles.divider} />
-                <Title style={styles.sectionTitle}>Podgląd</Title>
-                <Image source={{ uri: imageUri }} style={styles.previewImage} />
-              </>
+            {useOpenAI && (
+              <View style={styles.infoBadge}>
+                <MaterialCommunityIcons
+                  name="information"
+                  size={16}
+                  color={theme.colors.dark}
+                />
+                <Text style={styles.infoBadgeText}>Wymaga klucza API</Text>
+              </View>
             )}
-          </Card.Content>
+          </View>
+
+          <Text style={styles.hint}>
+            {useOpenAI
+              ? 'OpenAI Vision API zapewnia lepszą dokładność, ale wymaga klucza API'
+              : 'Tesseract działa offline, ale może być mniej dokładny'}
+          </Text>
         </Card>
 
-        {/* Historia dokumentów */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <View style={styles.sectionHeader}>
-              <Title style={styles.sectionTitle}>Ostatnie dokumenty</Title>
-              <Button
-                icon="refresh"
-                mode="text"
-                onPress={() => refetchHistory()}
-                loading={isLoadingHistory}
-                disabled={isProcessing}
-              >
-                Odśwież
-              </Button>
-            </View>
-
-            {isLoadingHistory ? (
-              <ActivityIndicator style={styles.historyLoading} />
-            ) : documents.length === 0 ? (
-              <Paragraph style={styles.emptyText}>
-                Brak zeskanowanych dokumentów
-              </Paragraph>
+        {/* 3. Obszar aparatu */}
+        <Card style={styles.cardSpacing}>
+          <SectionTitle text="Skanuj dokument" />
+          
+          <View style={styles.cameraArea}>
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.previewImage} />
             ) : (
-              documents.map((document: Document) => (
-                <View key={document.id} style={styles.documentItem}>
-                  <View style={styles.documentInfo}>
-                    <Text style={styles.documentName}>
-                      {document.file_name}
-                    </Text>
-                    <Text style={styles.documentDetails}>
-                      {new Date(document.created_at).toLocaleDateString('pl-PL')} •{' '}
-                      {document.status}
-                    </Text>
-                  </View>
-                  <View style={styles.documentActions}>
-                    <IconButton
-                      icon="eye"
-                      size={20}
-                      onPress={() => handleViewDocument(document)}
-                      disabled={isProcessing}
-                    />
-                    <IconButton
-                      icon="delete"
-                      size={20}
-                      onPress={() => handleDeleteDocument(document.id)}
-                      disabled={isProcessing}
-                    />
-                  </View>
-                </View>
-              ))
+              <View style={styles.cameraPlaceholder}>
+                <MaterialCommunityIcons
+                  name={scanSource === 'camera' ? 'camera' : 'image'}
+                  size={64}
+                  color={theme.colors.muted}
+                />
+                <Text style={styles.cameraPlaceholderText}>
+                  {scanSource === 'camera' 
+                    ? 'Przygotuj dokument do skanowania'
+                    : 'Wybierz zdjęcie dokumentu'}
+                </Text>
+              </View>
             )}
-          </Card.Content>
+          </View>
         </Card>
+
+        {/* 4. Przycisk "Skanuj" - FAB pełna szerokość */}
+        <View style={styles.fabContainer}>
+          <FAB
+            label={isProcessing ? 'Przetwarzanie...' : 'Skanuj'}
+            onPress={scanSource === 'camera' ? handleTakePhoto : handlePickFromGallery}
+            disabled={isProcessing}
+            fullWidth
+          />
+        </View>
+
+        {/* 5. Historia dokumentów */}
+        <Card style={styles.cardSpacing}>
+          <View style={styles.sectionHeader}>
+            <SectionTitle text="Ostatnie dokumenty" />
+            <TouchableOpacity
+              onPress={() => refetchHistory()}
+              disabled={isProcessing || isLoadingHistory}
+              activeOpacity={0.7}
+              style={styles.refreshButton}
+            >
+              <MaterialCommunityIcons
+                name="refresh"
+                size={20}
+                color={theme.colors.accent}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {isLoadingHistory ? (
+            <ActivityIndicator style={styles.historyLoading} color={theme.colors.accent} />
+          ) : documents.length === 0 ? (
+            <Text style={styles.emptyText}>
+              Brak zeskanowanych dokumentów
+            </Text>
+          ) : (
+            documents.map((document: Document) => (
+              <View key={document.id} style={styles.documentItem}>
+                <View style={styles.documentInfo}>
+                  <Text style={styles.documentName}>
+                    {document.file_name}
+                  </Text>
+                  <Text style={styles.documentDetails}>
+                    {new Date(document.created_at).toLocaleDateString('pl-PL')} •{' '}
+                    {document.status}
+                  </Text>
+                </View>
+                <View style={styles.documentActions}>
+                  <TouchableOpacity
+                    onPress={() => handleViewDocument(document)}
+                    disabled={isProcessing}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name="eye"
+                      size={20}
+                      color={theme.colors.dark}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteDocument(document.id)}
+                    disabled={isProcessing}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name="delete"
+                      size={20}
+                      color={theme.colors.dark}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+        </Card>
+
+        {/* 6. Wyniki OCR w Card z kremowym tłem */}
+        {ocrResult && (
+          <Card style={styles.resultsCard}>
+            <SectionTitle text="Wyniki OCR" />
+            <Card style={styles.ocrResultsCard}>
+              {ocrResult.processedData && (
+                <>
+                  {ocrResult.processedData.supplierName && (
+                    <Text style={styles.resultText}>
+                      <Text style={styles.resultLabel}>Dostawca:</Text> {ocrResult.processedData.supplierName}
+                    </Text>
+                  )}
+                  {ocrResult.processedData.invoiceNumber && (
+                    <Text style={styles.resultText}>
+                      <Text style={styles.resultLabel}>Numer faktury:</Text> {ocrResult.processedData.invoiceNumber}
+                    </Text>
+                  )}
+                  {ocrResult.processedData.amount && (
+                    <Text style={styles.resultText}>
+                      <Text style={styles.resultLabel}>Kwota:</Text> {ocrResult.processedData.amount}
+                    </Text>
+                  )}
+                </>
+              )}
+              <Text style={styles.confidenceTextSmall}>
+                Dokładność: {(ocrResult.confidence * 100).toFixed(1)}%
+              </Text>
+            </Card>
+          </Card>
+        )}
       </ScrollView>
 
       {/* Modal wyników */}
@@ -518,180 +593,341 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 100,
   },
-  headerCard: {
-    marginBottom: 16,
-    backgroundColor: '#4caf50',
+  cardSpacing: {
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
   },
-  title: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
+
+  // ── Status ──
   statusCard: {
-    marginBottom: 16,
-    backgroundColor: '#e3f2fd',
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    backgroundColor: theme.colors.accentLight,
   },
   statusContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: theme.spacing.sm,
+    padding: theme.spacing.md,
   },
   statusText: {
-    fontSize: 14,
-    color: '#1976d2',
-  },
-  sectionCard: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.accent,
     fontWeight: '600',
-    marginBottom: 12,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
+
+  // ── Source Buttons ──
   sourceButtons: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
   },
   sourceButton: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.background,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
-  divider: {
-    marginVertical: 16,
+  sourceButtonActive: {
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
   },
+  sourceButtonText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.dark,
+  },
+  sourceButtonTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // ── Separator ──
+  separator: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: theme.spacing.lg,
+  },
+
+  // ── Option Toggle ──
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
   },
-  optionChip: {
+  optionToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.background,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     flex: 1,
   },
-  infoChip: {
-    backgroundColor: '#fff3e0',
+  optionToggleActive: {
+    backgroundColor: theme.colors.dark,
+    borderColor: theme.colors.dark,
   },
-  hint: {
-    fontSize: 14,
-    color: '#666',
-    fontStyle: 'italic',
+  optionToggleText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.dark,
   },
-  actionButtons: {
+  optionToggleTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // ── Info Badge ──
+  infoBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.accentLight,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.radius.pill,
   },
-  scanButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 10,
+  infoBadgeText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.accent,
+    fontWeight: '700',
+  },
+
+  // ── Hint ──
+  hint: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.muted,
+    fontStyle: 'italic',
+    marginTop: theme.spacing.sm,
+  },
+
+  // ── Camera Area ──
+  cameraArea: {
+    borderRadius: theme.radius.md,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginTop: theme.spacing.sm,
+  },
+  cameraPlaceholder: {
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+  },
+  cameraPlaceholderText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.muted,
+    marginTop: theme.spacing.md,
+    textAlign: 'center',
   },
   previewImage: {
     width: '100%',
     height: 200,
-    borderRadius: 8,
-    marginTop: 8,
   },
+
+  // ── FAB ──
+  fabContainer: {
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+
+  // ── Section Header ──
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  refreshButton: {
+    padding: theme.spacing.xs,
+  },
+
+  // ── History ──
   historyLoading: {
-    marginVertical: 20,
+    marginVertical: theme.spacing.xl,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#666',
+    color: theme.colors.muted,
     fontStyle: 'italic',
-    paddingVertical: 20,
+    paddingVertical: theme.spacing.xl,
+    fontSize: theme.fontSize.md,
   },
   documentItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: theme.colors.border,
   },
   documentInfo: {
     flex: 1,
   },
   documentName: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 2,
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.dark,
+    marginBottom: theme.spacing.xs,
   },
   documentDetails: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.muted,
   },
   documentActions: {
     flexDirection: 'row',
+    gap: theme.spacing.md,
   },
-  // Result Modal
-  resultModal: {
+
+  // ── Results Card ──
+  resultsCard: {
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    backgroundColor: theme.colors.background,
+  },
+  ocrResultsCard: {
+    backgroundColor: theme.colors.background,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+  },
+  resultText: {
+    fontSize: theme.fontSize.md,
+    marginBottom: theme.spacing.sm,
+  },
+  resultLabel: {
+    fontWeight: '700',
+    color: theme.colors.dark,
+  },
+  confidenceTextSmall: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.accent,
+    fontWeight: '700',
+    marginTop: theme.spacing.sm,
+  },
+
+  // ── Result Modal ──
+  resultModalOverlay: {
     flex: 1,
-    margin: 20,
-    marginTop: 60,
-    marginBottom: 40,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
-  resultCard: {
+  resultModalContainer: {
+    backgroundColor: theme.colors.card,
+    borderTopLeftRadius: theme.radius.xl,
+    borderTopRightRadius: theme.radius.xl,
     maxHeight: '90%',
   },
-  modalHeader: {
+  resultModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: theme.spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  resultModalTitle: {
+    fontSize: theme.fontSize.xl,
+    fontWeight: '900',
+    color: theme.colors.dark,
+  },
+  resultModalContent: {
+    maxHeight: 500,
+    padding: theme.spacing.xl,
+  },
+  resultCard: {
+    gap: theme.spacing.md,
   },
   dataRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: theme.spacing.sm,
   },
   dataLabel: {
-    fontWeight: '600',
+    fontWeight: '700',
     width: 120,
-    color: '#333',
+    color: theme.colors.dark,
+    fontSize: theme.fontSize.md,
   },
   dataValue: {
     flex: 1,
-    color: '#555',
+    color: theme.colors.dark,
+    fontSize: theme.fontSize.md,
   },
   textCard: {
-    marginVertical: 12,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
     maxHeight: 200,
   },
   textScroll: {
     maxHeight: 180,
   },
   ocrText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#333',
+    fontSize: theme.fontSize.sm,
+    lineHeight: 20,
+    color: theme.colors.dark,
     fontFamily: 'monospace',
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginVertical: 12,
   },
   confidenceChip: {
-    backgroundColor: '#e8f5e9',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.accentLight,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.pill,
+  },
+  confidenceText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.accent,
+    fontWeight: '700',
   },
   modalActions: {
     flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'center',
+    gap: theme.spacing.sm,
   },
-  actionButton: {
+  modalActionButton: {
     flex: 1,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  modalActionButtonPrimary: {
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
+  },
+  modalActionText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.dark,
+  },
+  modalActionTextPrimary: {
+    color: '#FFFFFF',
   },
 });

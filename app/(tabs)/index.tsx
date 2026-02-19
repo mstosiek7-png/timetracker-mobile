@@ -9,24 +9,31 @@ import {
   StyleSheet,
   Alert,
   RefreshControl,
+  Text,
+  ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import {
-  Card,
-  Title,
-  Paragraph,
-  Button,
-  Text,
-  Divider,
-  ActivityIndicator,
-  Chip,
-  FAB,
   Modal,
   Portal,
-  IconButton,
+  Card as PaperCard,
+  Title,
+  Button,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+
+import { theme } from '../../constants/theme';
+import { Card } from '../../components/ui/Card';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { StatBox } from '../../components/ui/StatBox';
+import { FAB } from '../../components/ui/FAB';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { SectionTitle } from '../../components/ui/SectionTitle';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 import { useEmployees } from '../../hooks/useEmployees';
 import { useTimeEntries } from '../../hooks/useTimeEntries';
@@ -36,7 +43,29 @@ import BulkTimeEntryModal from '../../components/time/BulkTimeEntryModal';
 import { EmployeeList } from '../../components/employee/EmployeeList';
 import { EmployeeForm } from '../../components/employee/EmployeeForm';
 import { useCreateTimeEntry, useUpdateTimeEntry, useDeleteTimeEntry } from '../../hooks/useTimeEntries';
-import { TimeEntry, TimeEntryInsert } from '../../types/models';
+import { TimeEntry, TimeEntryInsert, TimeEntryStatus } from '../../types/models';
+
+// =====================================================
+// Helper Functions
+// =====================================================
+
+function getStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    work: 'Praca',
+    sick: 'Chorobowe',
+    vacation: 'Urlop',
+    fza: 'FZA',
+  };
+  return labels[status] || status;
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((part) => part.charAt(0).toUpperCase())
+    .slice(0, 2)
+    .join('');
+}
 
 // =====================================================
 // Main Component
@@ -52,18 +81,18 @@ export default function DashboardScreen() {
   const [showFullEmployeeList, setShowFullEmployeeList] = useState(false);
 
   // Hooks
-  const { 
-    data: employees = [], 
+  const {
+    data: employees = [],
     isLoading: isLoadingEmployees,
     error: employeesError,
-    refetch: refetchEmployees 
+    refetch: refetchEmployees,
   } = useEmployees();
 
-  const { 
-    data: timeEntries = [], 
+  const {
+    data: timeEntries = [],
     isLoading: isLoadingEntries,
     error: timeEntriesError,
-    refetch: refetchEntries 
+    refetch: refetchEntries,
   } = useTimeEntries();
 
   const { data: stats } = useTimeEntryStats();
@@ -73,7 +102,7 @@ export default function DashboardScreen() {
 
   // =====================================================
   // Handlers
-// =====================================================
+  // =====================================================
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -89,7 +118,6 @@ export default function DashboardScreen() {
   const handleTimeEntrySubmit = async (data: TimeEntryInsert | TimeEntry) => {
     try {
       if (selectedTimeEntry) {
-        // Usuń id z data, ponieważ przekazujemy je osobno
         const { id, ...updateData } = data as TimeEntry;
         await updateTimeEntry({ id: selectedTimeEntry.id, ...updateData });
         Alert.alert('Sukces', 'Wpis czasu pracy został zaktualizowany');
@@ -143,7 +171,7 @@ export default function DashboardScreen() {
 
   // =====================================================
   // Render
-// =====================================================
+  // =====================================================
 
   const isLoading = isLoadingEmployees || isLoadingEntries;
   const hasError = employeesError || timeEntriesError;
@@ -151,7 +179,7 @@ export default function DashboardScreen() {
   if (isLoading && !hasError) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={theme.colors.accent} />
         <Text style={styles.loadingText}>Ładowanie dashboardu...</Text>
       </View>
     );
@@ -164,265 +192,217 @@ export default function DashboardScreen() {
         <Text style={styles.errorText}>
           {employeesError?.message || timeEntriesError?.message || 'Wystąpił nieoczekiwany błąd'}
         </Text>
-        <Button 
-          mode="contained" 
+        <TouchableOpacity
+          style={styles.retryButton}
           onPress={() => {
             if (employeesError) refetchEmployees();
             if (timeEntriesError) refetchEntries();
           }}
-          style={styles.retryButton}
-          icon="refresh"
         >
-          Spróbuj ponownie
-        </Button>
+          <Text style={styles.retryButtonText}>Spróbuj ponownie</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  const activeEmployees = employees.filter(emp => emp.active).length;
+  const activeEmployeesCount = employees.filter((emp) => emp.active).length;
   const recentEntries = timeEntries.slice(0, 5);
   const today = format(new Date(), 'dd.MM.yyyy', { locale: pl });
 
+  const statusData: { status: TimeEntryStatus; label: string; hours: string }[] = [
+    { status: 'work', label: 'PRACA', hours: `${stats?.workHours?.toFixed(1) || '0.0'}h` },
+    { status: 'sick', label: 'CHOROBOWE', hours: `${stats?.sickHours?.toFixed(1) || '0.0'}h` },
+    { status: 'vacation', label: 'URLOPY', hours: `${stats?.vacationHours?.toFixed(1) || '0.0'}h` },
+    { status: 'fza', label: 'FZA', hours: `${stats?.fzaHours?.toFixed(1) || '0.0'}h` },
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* 1. PageHeader */}
+      <PageHeader
+        title="TimeTracker"
+        subtitle="asphaltbau"
+        rightAction={
+          <View style={styles.headerRightContainer}>
+            <Text style={styles.headerDate}>{today}</Text>
+            <TouchableOpacity 
+              style={styles.loginButton}
+              onPress={() => router.push('/auth/sign-in')}
+            >
+              <Ionicons name="log-in-outline" size={20} color={theme.colors.accent} />
+              <Text style={styles.loginButtonText}>Logowanie</Text>
+            </TouchableOpacity>
+          </View>
+        }
+      />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Nagłówek */}
-        <Card style={styles.headerCard}>
-          <Card.Content>
-            <Title style={styles.title}>TimeTracker</Title>
-            <Paragraph>
-              Zarządzanie czasem pracy • {today}
-            </Paragraph>
-          </Card.Content>
+        {/* 2. Rząd StatBoxów */}
+        <Card>
+          <View style={styles.statsRow}>
+            <StatBox value={activeEmployeesCount.toString()} label="Pracownicy" />
+            <StatBox value={timeEntries.length.toString()} label="Wpisy" />
+            <StatBox value={stats?.totalHours?.toFixed(1) || '0.0'} label="Godziny" />
+          </View>
         </Card>
 
-        {/* Statystyki */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <Title style={styles.sectionTitle}>Podsumowanie</Title>
-            
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Pracownicy</Text>
-                <Text style={styles.statValue}>{activeEmployees}</Text>
-                <Text style={styles.statSubtext}>Aktywni</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Wpisy</Text>
-                <Text style={styles.statValue}>{timeEntries.length}</Text>
-                <Text style={styles.statSubtext}>Ostatnie 30 dni</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Godziny</Text>
-                <Text style={styles.statValue}>
-                  {stats?.totalHours?.toFixed(1) || '0.0'}
+        {/* 3. Kafelki statusów */}
+        <Card>
+          <View style={styles.statusGrid}>
+            {statusData.map((item) => (
+              <View key={item.status} style={styles.statusTile}>
+                <StatusBadge status={item.status} size="sm" />
+                <Text style={[styles.statusHours, { color: theme.colors.statusColors[item.status].text }]}>
+                  {item.hours}
                 </Text>
-                <Text style={styles.statSubtext}>Łącznie</Text>
               </View>
-            </View>
-
-            <Divider style={styles.divider} />
-
-            <View style={styles.detailedStats}>
-              <Chip mode="outlined" style={styles.workChip}>
-                Praca: {stats?.workHours?.toFixed(1) || '0.0'}h
-              </Chip>
-              <Chip mode="outlined" style={styles.sickChip}>
-                Chorobowe: {stats?.sickHours?.toFixed(1) || '0.0'}h
-              </Chip>
-              <Chip mode="outlined" style={styles.vacationChip}>
-                Urlopy: {stats?.vacationHours?.toFixed(1) || '0.0'}h
-              </Chip>
-              <Chip mode="outlined" style={styles.fzaChip}>
-                FZA: {stats?.fzaHours?.toFixed(1) || '0.0'}h
-              </Chip>
-            </View>
-          </Card.Content>
+            ))}
+          </View>
         </Card>
 
-        {/* Szybkie akcje */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <Title style={styles.sectionTitle}>Szybkie akcje</Title>
-            
-            <View style={styles.quickActions}>
-              <Button
-                mode="contained"
-                onPress={() => setShowTimeEntryModal(true)}
-                style={styles.actionButton}
-                icon="plus"
-              >
-                Dodaj wpis
-              </Button>
-              <Button
-                mode="contained"
-                onPress={() => setShowBulkEntryModal(true)}
-                style={styles.actionButton}
-                icon="account-multiple-plus"
-              >
-                Zbiorczo
-              </Button>
-            </View>
-          </Card.Content>
+        {/* 4. Szybkie akcje */}
+        <Card>
+          <SectionTitle text="SZYBKIE AKCJE" />
+          <View style={styles.fabRow}>
+            <FAB
+              label="+ Dodaj wpis"
+              icon="✏️"
+              onPress={() => setShowTimeEntryModal(true)}
+            />
+            <TouchableOpacity
+              style={styles.fabDark}
+              onPress={() => setShowBulkEntryModal(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.fabDarkIcon}>📋</Text>
+              <Text style={styles.fabDarkLabel}>Zbiorczo</Text>
+            </TouchableOpacity>
+          </View>
         </Card>
 
-        {/* Ostatnie wpisy */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <View style={styles.sectionHeader}>
-              <Title style={styles.sectionTitle}>Ostatnie wpisy</Title>
-              <Button
-                mode="text"
-                onPress={() => {/* Można dodać nawigację do listy wszystkich wpisów */}}
-                compact
-              >
-                Zobacz wszystkie
-              </Button>
-            </View>
-
-            {recentEntries.length === 0 ? (
-              <Paragraph style={styles.emptyText}>
-                Brak ostatnich wpisów
-              </Paragraph>
-            ) : (
-              <View style={styles.entriesList}>
-                {recentEntries.map(entry => {
-                  const employee = employees.find(emp => emp.id === entry.employee_id);
-                  return (
-                    <View key={entry.id} style={styles.entryItem}>
+        {/* 5. Ostatnie wpisy */}
+        <Card>
+          <SectionTitle
+            text="OSTATNIE WPISY"
+            rightText="Zobacz wszystkie"
+            onRightPress={() => {}}
+          />
+          {recentEntries.length === 0 ? (
+            <EmptyState
+              icon="⏱️"
+              title="Brak wpisów"
+              subtitle="Dodaj pierwszy wpis czasu pracy"
+            />
+          ) : (
+            <View style={styles.entriesList}>
+              {recentEntries.map((entry) => {
+                const employee = employees.find((emp) => emp.id === entry.employee_id);
+                const statusColor = theme.colors.statusColors[entry.status as TimeEntryStatus]?.text || theme.colors.accent;
+                return (
+                  <Card key={entry.id} leftBorderColor={statusColor}>
+                    <View style={styles.entryRow}>
                       <View style={styles.entryInfo}>
-                        <Text style={styles.entryDate}>
-                          {format(new Date(entry.date), 'dd.MM.yyyy')}
-                        </Text>
                         <Text style={styles.entryEmployee}>
                           {employee?.name || 'Nieznany pracownik'}
                         </Text>
-                        <View style={styles.entryDetails}>
-                          <Chip
-                            mode="outlined"
-                            style={styles.entryStatus}
-                            compact
-                          >
-                            {entry.hours}h • {getStatusLabel(entry.status)}
-                          </Chip>
-                          {entry.notes && (
-                            <Text style={styles.entryNotes} numberOfLines={1}>
-                              {entry.notes}
-                            </Text>
-                          )}
-                        </View>
+                        <Text style={styles.entryDate}>
+                          {format(new Date(entry.date), 'dd.MM.yyyy')} • {entry.hours}h
+                        </Text>
+                        {entry.notes ? (
+                          <Text style={styles.entryNotes} numberOfLines={1}>
+                            {entry.notes}
+                          </Text>
+                        ) : null}
                       </View>
                       <View style={styles.entryActions}>
-                        <IconButton
-                          icon="pencil"
-                          size={16}
-                          onPress={() => handleEditTimeEntry(entry)}
-                          mode="contained-tonal"
-                        />
-                        <IconButton
-                          icon="delete"
-                          size={16}
-                          onPress={() => handleDeleteTimeEntry(entry)}
-                          mode="contained-tonal"
-                          containerColor="#ffebee"
-                          iconColor="#d32f2f"
-                        />
+                        <StatusBadge status={entry.status as TimeEntryStatus} size="sm" />
+                        <View style={styles.entryButtons}>
+                          <TouchableOpacity onPress={() => handleEditTimeEntry(entry)} style={styles.iconBtn}>
+                            <Text style={styles.iconBtnText}>✏️</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleDeleteTimeEntry(entry)} style={styles.iconBtn}>
+                            <Text style={styles.iconBtnText}>🗑️</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
-                  );
-                })}
+                  </Card>
+                );
+              })}
+            </View>
+          )}
+        </Card>
+
+        {/* 6. Wszyscy pracownicy — kliknięcie otwiera widok miesięczny */}
+        <Card>
+          <SectionTitle text="PRACOWNICY" />
+          {employees.length === 0 ? (
+            <EmptyState icon="👥" title="Brak pracowników" />
+          ) : (
+            <View style={styles.pillsContainer}>
+              {employees.map((emp) => (
+                <TouchableOpacity
+                  key={emp.id}
+                  style={styles.pill}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(tabs)/monthly',
+                      params: { employeeId: emp.id },
+                    })
+                  }
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.pillAvatar}>
+                    <Text style={styles.pillInitials}>{getInitials(emp.name)}</Text>
+                  </View>
+                  <Text style={styles.pillName}>{emp.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </Card>
+
+        {/* 7. Zarządzanie pracownikami */}
+        <Card>
+          <SectionTitle
+            text="ZARZĄDZANIE PRACOWNIKAMI"
+            rightText="Zobacz wszystkich"
+            onRightPress={() => setShowFullEmployeeList(true)}
+          />
+          {employees.slice(0, 2).map((emp) => (
+            <TouchableOpacity
+              key={emp.id}
+              style={styles.employeeCard}
+              onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/monthly',
+                  params: { employeeId: emp.id },
+                })
+              }
+              activeOpacity={0.7}
+            >
+              <View style={styles.employeeInfo}>
+                <Text style={styles.employeeName}>{emp.name}</Text>
+                <Text style={styles.employeePosition}>{emp.position || '—'}</Text>
               </View>
-            )}
-          </Card.Content>
-        </Card>
-
-        {/* Aktywni pracownicy */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <Title style={styles.sectionTitle}>Aktywni pracownicy</Title>
-            
-            <View style={styles.employeesGrid}>
-              {employees
-                .filter(emp => emp.active)
-                .slice(0, 6)
-                .map(employee => (
-                  <Chip
-                    key={employee.id}
-                    style={styles.employeeChip}
-                    mode="outlined"
-                    avatar={employee.position ? <Text>{employee.position.charAt(0)}</Text> : undefined}
-                  >
-                    {employee.name}
-                  </Chip>
-                ))}
-            </View>
-          </Card.Content>
-        </Card>
-
-        {/* Zarządzanie pracownikami */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <View style={styles.sectionHeader}>
-              <Title style={styles.sectionTitle}>Zarządzanie pracownikami</Title>
-              <Button
-                mode="text"
-                onPress={() => {
-                  // Przewijanie do sekcji pracowników
-                }}
-                compact
-              >
-                Zobacz wszystkich
-              </Button>
-            </View>
-            
-            <EmployeeList
-              showActions={false}
-              filterActive={true}
-              onEmployeePress={(employee) => {
-                // Można dodać nawigację do szczegółów pracownika
-              }}
-            />
-            
-            <View style={styles.managementActions}>
-              <Button
-                mode="contained"
-                onPress={() => {
-                  // Otwórz modal dodawania pracownika
-                  setShowEmployeeManagement(true);
-                }}
-                style={styles.managementButton}
-                icon="account-plus"
-              >
-                Dodaj pracownika
-              </Button>
-              <Button
-                mode="outlined"
-                onPress={() => {
-                  // Otwórz pełną listę z akcjami
-                  setShowFullEmployeeList(true);
-                }}
-                style={styles.managementButton}
-                icon="format-list-bulleted"
-              >
-                Zarządzaj listą
-              </Button>
-            </View>
-          </Card.Content>
+              <StatusBadge status={emp.active ? 'work' : 'fza'} size="sm" />
+            </TouchableOpacity>
+          ))}
+          <View style={styles.managementActions}>
+            <TouchableOpacity
+              style={styles.addEmployeeBtn}
+              onPress={() => setShowEmployeeManagement(true)}
+            >
+              <Text style={styles.addEmployeeBtnText}>+ Dodaj pracownika</Text>
+            </TouchableOpacity>
+          </View>
         </Card>
       </ScrollView>
-
-      {/* Floating Action Button */}
-      <FAB
-        style={styles.fab}
-        icon="plus"
-        onPress={() => setShowTimeEntryModal(true)}
-        label="Dodaj wpis"
-      />
 
       {/* Modal dla pojedynczego wpisu */}
       <Portal>
@@ -431,12 +411,12 @@ export default function DashboardScreen() {
           onDismiss={handleTimeEntryCancel}
           contentContainerStyle={styles.modalContainer}
         >
-          <Card>
-            <Card.Content>
+          <PaperCard>
+            <PaperCard.Content>
               <Title style={styles.modalTitle}>
                 {selectedTimeEntry ? 'Edytuj wpis czasu pracy' : 'Dodaj nowy wpis czasu pracy'}
               </Title>
-              
+
               <TimeEntryForm
                 onSubmit={handleTimeEntrySubmit}
                 onCancel={handleTimeEntryCancel}
@@ -444,8 +424,8 @@ export default function DashboardScreen() {
                 isLoading={isCreating || isUpdating}
                 submitButtonText={selectedTimeEntry ? 'Zapisz zmiany' : 'Dodaj wpis'}
               />
-            </Card.Content>
-          </Card>
+            </PaperCard.Content>
+          </PaperCard>
         </Modal>
       </Portal>
 
@@ -465,47 +445,32 @@ export default function DashboardScreen() {
 
       {/* Modal dla pełnej listy pracowników z akcjami */}
       {showFullEmployeeList && (
-        <Modal
-          visible={showFullEmployeeList}
-          onDismiss={() => setShowFullEmployeeList(false)}
-          contentContainerStyle={styles.modalContainer}
-        >
-          <Card>
-            <Card.Content>
-              <Title style={styles.modalTitle}>Zarządzanie pracownikami</Title>
-              <EmployeeList
-                showActions={true}
-                onEmployeePress={(employee) => {
-                  // Można dodać nawigację do szczegółów pracownika
-                }}
-              />
-              <Button
-                mode="outlined"
-                onPress={() => setShowFullEmployeeList(false)}
-                style={styles.managementButton}
-              >
-                Zamknij
-              </Button>
-            </Card.Content>
-          </Card>
-        </Modal>
+        <Portal>
+          <Modal
+            visible={showFullEmployeeList}
+            onDismiss={() => setShowFullEmployeeList(false)}
+            contentContainerStyle={styles.modalContainer}
+          >
+            <PaperCard>
+              <PaperCard.Content>
+                <Title style={styles.modalTitle}>Zarządzanie pracownikami</Title>
+                <EmployeeList
+                  showActions={true}
+                  onEmployeePress={() => {}}
+                />
+                <TouchableOpacity
+                  style={styles.closeModalBtn}
+                  onPress={() => setShowFullEmployeeList(false)}
+                >
+                  <Text style={styles.closeModalBtnText}>Zamknij</Text>
+                </TouchableOpacity>
+              </PaperCard.Content>
+            </PaperCard>
+          </Modal>
+        </Portal>
       )}
     </SafeAreaView>
   );
-}
-
-// =====================================================
-// Helper Functions
-// =====================================================
-
-function getStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    work: 'Praca',
-    sick: 'Chorobowe',
-    vacation: 'Urlop',
-    fza: 'FZA',
-  };
-  return labels[status] || status;
 }
 
 // =====================================================
@@ -515,196 +480,263 @@ function getStatusLabel(status: string): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
-    padding: 16,
+    padding: theme.spacing.lg,
     paddingBottom: 100,
+    gap: theme.spacing.md,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: theme.spacing.xl,
+    backgroundColor: theme.colors.background,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    marginTop: theme.spacing.lg,
+    fontSize: theme.fontSize.lg,
+    color: theme.colors.muted,
   },
   errorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#d32f2f',
-    marginBottom: 12,
+    fontSize: theme.fontSize.xl,
+    fontWeight: '900',
+    color: theme.colors.statusColors.sick.text,
+    marginBottom: theme.spacing.md,
     textAlign: 'center',
   },
   errorText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.muted,
+    marginBottom: theme.spacing.xl,
     textAlign: 'center',
     lineHeight: 20,
   },
   retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
+    backgroundColor: theme.colors.accent,
+    borderRadius: theme.radius.pill,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xxl,
   },
-  headerCard: {
-    marginBottom: 16,
-    backgroundColor: '#2196f3',
+  retryButtonText: {
+    color: theme.colors.card,
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
   },
-  title: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
+
+  // Header
+  headerDate: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.muted,
   },
-  sectionCard: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
-  sectionHeader: {
+
+  // Stats row
+  statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
   },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2196f3',
-  },
-  statSubtext: {
-    fontSize: 10,
-    color: '#999',
-  },
-  divider: {
-    marginVertical: 16,
-  },
-  detailedStats: {
+
+  // Status grid
+  statusGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
+    gap: theme.spacing.sm,
   },
-  workChip: {
-    backgroundColor: '#e8f5e9',
-  },
-  sickChip: {
-    backgroundColor: '#fff3e0',
-  },
-  vacationChip: {
-    backgroundColor: '#e3f2fd',
-  },
-  fzaChip: {
-    backgroundColor: '#f3e5f5',
-  },
-  quickActions: {
+  statusTile: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    width: '30%',
+    marginBottom: theme.spacing.xs,
   },
-  actionButton: {
-    flex: 1,
+  statusHours: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
   },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    fontStyle: 'italic',
-    paddingVertical: 20,
+
+  // FAB row
+  fabRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
   },
+  fabDark: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.dark,
+    borderRadius: theme.radius.pill,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  fabDarkIcon: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.card,
+  },
+  fabDarkLabel: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.card,
+  },
+
+  // Entries list
   entriesList: {
-    gap: 12,
+    gap: theme.spacing.sm,
   },
-  entryItem: {
+  entryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#eee',
   },
   entryInfo: {
     flex: 1,
   },
-  entryDate: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
   entryEmployee: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.dark,
+  },
+  entryDate: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.muted,
     marginTop: 2,
   },
-  entryDetails: {
-    marginTop: 4,
-    gap: 4,
-  },
-  entryStatus: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#f0f9ff',
-  },
   entryNotes: {
-    fontSize: 11,
-    color: '#666',
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.muted,
     fontStyle: 'italic',
+    marginTop: 2,
   },
   entryActions: {
-    flexDirection: 'row',
-    gap: 4,
+    alignItems: 'flex-end',
+    gap: theme.spacing.xs,
   },
-  employeesGrid: {
+  entryButtons: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+  },
+  iconBtn: {
+    padding: theme.spacing.xs,
+  },
+  iconBtnText: {
+    fontSize: theme.fontSize.md,
+  },
+
+  // Pills (active employees)
+  pillsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
+    gap: theme.spacing.sm,
   },
-  employeeChip: {
-    margin: 2,
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.accentLight,
+    borderRadius: theme.radius.pill,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
-  fab: {
-    position: 'absolute',
-    margin: 16,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#2196f3',
+  pillAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  pillInitials: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '700',
+    color: theme.colors.card,
+  },
+  pillName: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.dark,
+  },
+
+  // Employee cards
+  employeeCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  employeeInfo: {
+    flex: 1,
+  },
+  employeeName: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.dark,
+  },
+  employeePosition: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.muted,
+    marginTop: 2,
+  },
+  managementActions: {
+    marginTop: theme.spacing.md,
+  },
+  addEmployeeBtn: {
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+    borderRadius: theme.radius.pill,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  addEmployeeBtnText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.accent,
+  },
+
+  // Modals
   modalContainer: {
-    margin: 20,
+    margin: theme.spacing.xl,
     maxHeight: '80%',
   },
   modalTitle: {
-    marginBottom: 16,
+    marginBottom: theme.spacing.lg,
+    fontSize: theme.fontSize.xl,
+    fontWeight: '900',
+    color: theme.colors.dark,
   },
-  managementActions: {
+  closeModalBtn: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.pill,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+    marginTop: theme.spacing.lg,
+  },
+  closeModalBtnText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.mid,
+  },
+
+  // Header right container
+  headerRightContainer: {
+    alignItems: 'flex-end',
+    gap: theme.spacing.xs,
+  },
+  loginButton: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+    borderRadius: theme.radius.sm,
   },
-  managementButton: {
-    flex: 1,
+  loginButtonText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '700',
+    color: theme.colors.accent,
   },
 });

@@ -4,22 +4,22 @@
 
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '@/utils/constants';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { theme } from '../../constants/theme';
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textSecondary,
+        tabBarActiveTintColor: theme.colors.accent,
+        tabBarInactiveTintColor: theme.colors.muted,
         tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
+          backgroundColor: theme.colors.card,
+          borderTopColor: theme.colors.border,
           borderTopWidth: 1,
         },
         headerStyle: {
-          backgroundColor: COLORS.primary,
+          backgroundColor: theme.colors.accent,
         },
         headerTintColor: '#fff',
         headerTitleStyle: {
@@ -39,27 +39,45 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Monthly View Tab */}
+      {/* Monthly View — dostępny przez nawigację po kliknięciu pracownika, ukryty z tab baru */}
       <Tabs.Screen
         name="monthly"
         options={{
-          title: 'Miesięczny',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="calendar-month" size={size} color={color} />
-          ),
+          href: null,
           headerTitle: 'Widok Miesięczny',
         }}
       />
 
-      {/* Scanner Tab */}
+      {/* Scanner — dostępny przy dodawaniu dostaw, ukryty z tab baru */}
       <Tabs.Screen
         name="scanner"
         options={{
-          title: 'Skaner',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="camera" size={size} color={color} />
-          ),
+          href: null,
           headerTitle: 'Skaner Dokumentów',
+        }}
+      />
+
+      {/* Baustellen Tab */}
+      <Tabs.Screen
+        name="baustellen"
+        options={{
+          title: 'Baustellen',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="construct-outline" size={size} color={color} />
+          ),
+          headerTitle: 'Lista Budów',
+        }}
+      />
+
+      {/* Calculator Tab */}
+      <Tabs.Screen
+        name="calculator"
+        options={{
+          title: 'Kalkulator',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calculator-outline" size={size} color={color} />
+          ),
+          headerTitle: 'Kalkulator Asfaltu',
         }}
       />
 

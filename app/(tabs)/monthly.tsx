@@ -8,30 +8,24 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-} from 'react-native';
-import {
-  Card,
-  Title,
-  Paragraph,
   Text,
-  Divider,
-  Chip,
-  IconButton,
-  ActivityIndicator,
-  SegmentedButtons,
-  Button,
   Modal,
-  Portal,
-} from 'react-native-paper';
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { format, parseISO, eachDayOfInterval, startOfMonth, endOfMonth, 
-         isSameMonth, isSameDay, addMonths, subMonths, eachWeekOfInterval, 
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { format, parseISO, eachDayOfInterval, startOfMonth, endOfMonth,
+         isSameMonth, isSameDay, addMonths, subMonths,
          startOfWeek, endOfWeek } from 'date-fns';
 import { pl } from 'date-fns/locale';
+
+import { useLocalSearchParams } from 'expo-router';
 
 import { useEmployees } from '../../hooks/useEmployees';
 import { useMonthlySummary } from '../../hooks/useTimeEntries';
 import { TimeEntryStatus } from '../../types/models';
+import { theme, StatusType } from '../../constants/theme';
+import { Card, PageHeader, SectionTitle, StatBox, StatusBadge } from '../../components/ui';
 
 // =====================================================
 // Types
@@ -53,9 +47,12 @@ interface DayCell {
 // =====================================================
 
 export default function MonthlyViewScreen() {
+  // URL params — employeeId przekazywane po kliknięciu pracownika w dashboardzie
+  const { employeeId: paramEmployeeId } = useLocalSearchParams<{ employeeId?: string }>();
+
   // State
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(paramEmployeeId ?? '');
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [viewMode, setViewMode] = useState<'calendar' | 'summary'>('calendar');
 
@@ -69,7 +66,7 @@ export default function MonthlyViewScreen() {
 
   // =====================================================
   // Computed Values
-// =====================================================
+  // =====================================================
 
   const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
 
@@ -78,14 +75,14 @@ export default function MonthlyViewScreen() {
     const end = endOfMonth(selectedDate);
     const startOfFirstWeek = startOfWeek(start, { weekStartsOn: 1 });
     const endOfLastWeek = endOfWeek(end, { weekStartsOn: 1 });
-    
+
     const days = eachDayOfInterval({ start: startOfFirstWeek, end: endOfLastWeek });
-    
+
     return days.map(date => {
-      const dayEntries = timeEntries.filter(entry => 
+      const dayEntries = timeEntries.filter(entry =>
         isSameDay(parseISO(entry.date), date)
       );
-      
+
       return {
         date,
         isCurrentMonth: isSameMonth(date, selectedDate),
@@ -113,9 +110,9 @@ export default function MonthlyViewScreen() {
     const fzaHours = timeEntries
       .filter(entry => entry.status === 'fza')
       .reduce((sum, entry) => sum + entry.hours, 0);
-    
+
     const daysWithEntries = new Set(timeEntries.map(entry => entry.date)).size;
-    
+
     return {
       totalHours,
       workHours,
@@ -129,7 +126,7 @@ export default function MonthlyViewScreen() {
 
   // =====================================================
   // Handlers
-// =====================================================
+  // =====================================================
 
   const handlePrevMonth = () => {
     setSelectedDate(prev => subMonths(prev, 1));
@@ -145,13 +142,23 @@ export default function MonthlyViewScreen() {
   };
 
   // =====================================================
+  // Helper: split name into first/last
+  // =====================================================
+
+  const getNameParts = (fullName: string): { firstName: string; lastName: string } => {
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length <= 1) return { firstName: parts[0] || '', lastName: '' };
+    return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+  };
+
+  // =====================================================
   // Render
-// =====================================================
+  // =====================================================
 
   if (isLoadingEmployees) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={theme.colors.accent} />
         <Text style={styles.loadingText}>Ładowanie pracowników...</Text>
       </View>
     );
@@ -160,335 +167,347 @@ export default function MonthlyViewScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Nagłówek */}
-        <Card style={styles.headerCard}>
-          <Card.Content>
-            <Title style={styles.title}>Widok miesięczny</Title>
-            <Paragraph>
-              Przeglądaj godzinę pracy dla poszczególnych pracowników
-            </Paragraph>
-          </Card.Content>
-        </Card>
+        {/* 1. PageHeader */}
+        <PageHeader subtitle="asphaltbau" title="Widok Miesięczny" />
 
-        {/* Wybór pracownika */}
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <View style={styles.sectionHeader}>
-              <Title style={styles.sectionTitle}>Pracownik</Title>
-              <Button
-                mode="outlined"
-                onPress={() => setShowEmployeeModal(true)}
-                icon="account-switch"
-              >
-                {selectedEmployee ? selectedEmployee.name : 'Wybierz pracownika'}
-              </Button>
-            </View>
-            
-            {selectedEmployee && (
-              <View style={styles.employeeInfo}>
-                <Text style={styles.employeeName}>{selectedEmployee.name}</Text>
-                <Text style={styles.employeePosition}>{selectedEmployee.position}</Text>
-                <Chip 
-                  mode="outlined" 
-                  icon={selectedEmployee.active ? 'check-circle' : 'close-circle'}
-                >
-                  {selectedEmployee.active ? 'Aktywny' : 'Nieaktywny'}
-                </Chip>
+        {/* 2. Card "Pracownik" */}
+        <Card style={styles.cardSpacing}>
+          <SectionTitle text="PRACOWNIK" />
+
+          {selectedEmployee ? (
+            <View style={styles.employeeSection}>
+              <View style={styles.employeeNameRow}>
+                <Text style={styles.employeeFirstName}>
+                  {getNameParts(selectedEmployee.name).firstName}
+                </Text>
+                <Text style={styles.employeeLastName}>
+                  {getNameParts(selectedEmployee.name).lastName}
+                </Text>
               </View>
-            )}
-          </Card.Content>
+
+              <StatusBadge
+                status="work"
+                label={selectedEmployee.active ? 'Aktywny' : 'Nieaktywny'}
+              />
+            </View>
+          ) : null}
+
+          <TouchableOpacity
+            style={styles.pillButton}
+            onPress={() => setShowEmployeeModal(true)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name="account-switch"
+              size={16}
+              color={theme.colors.accent}
+            />
+            <Text style={styles.pillButtonText}>
+              {selectedEmployee ? 'Zmień pracownika' : 'Wybierz pracownika'}
+            </Text>
+          </TouchableOpacity>
         </Card>
 
         {/* Widok miesięczny - tylko jeśli wybrano pracownika */}
         {selectedEmployeeId ? (
           <>
-            {/* Nawigacja miesiąca */}
-            <Card style={styles.sectionCard}>
-              <Card.Content>
-                <View style={styles.monthNavigation}>
-                  <IconButton
-                    icon="chevron-left"
-                    size={24}
-                    onPress={handlePrevMonth}
+            {/* 3. Card "Nawigacja miesiąca" */}
+            <Card style={styles.cardSpacing}>
+              <View style={styles.monthNavigation}>
+                <TouchableOpacity onPress={handlePrevMonth} style={styles.navArrow}>
+                  <MaterialCommunityIcons
+                    name="chevron-left"
+                    size={28}
+                    color={theme.colors.dark}
                   />
-                  <View style={styles.monthTitleContainer}>
-                    <Text style={styles.monthTitle}>
-                      {format(selectedDate, 'MMMM yyyy', { locale: pl })}
-                    </Text>
-                    <Text style={styles.monthSubtitle}>
-                      {format(selectedDate, 'LLLL yyyy', { locale: pl })}
-                    </Text>
-                  </View>
-                  <IconButton
-                    icon="chevron-right"
-                    size={24}
-                    onPress={handleNextMonth}
-                  />
-                </View>
+                </TouchableOpacity>
 
-                <SegmentedButtons
-                  value={viewMode}
-                  onValueChange={value => setViewMode(value as typeof viewMode)}
-                  buttons={[
-                    { value: 'calendar', label: 'Kalendarz', icon: 'calendar' },
-                    { value: 'summary', label: 'Podsumowanie', icon: 'chart-bar' },
+                <Text style={styles.monthTitle}>
+                  {format(selectedDate, 'LLLL yyyy', { locale: pl })}
+                </Text>
+
+                <TouchableOpacity onPress={handleNextMonth} style={styles.navArrow}>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={28}
+                    color={theme.colors.dark}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Toggle Kalendarz | Podsumowanie */}
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleBtn,
+                    viewMode === 'calendar' && styles.toggleBtnActive,
                   ]}
-                  style={styles.segmentedButtons}
-                />
-              </Card.Content>
+                  onPress={() => setViewMode('calendar')}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      viewMode === 'calendar' && styles.toggleTextActive,
+                    ]}
+                  >
+                    Kalendarz
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleBtn,
+                    viewMode === 'summary' && styles.toggleBtnActive,
+                  ]}
+                  onPress={() => setViewMode('summary')}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      viewMode === 'summary' && styles.toggleTextActive,
+                    ]}
+                  >
+                    Podsumowanie
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </Card>
 
             {isLoadingEntries ? (
-              <Card style={styles.sectionCard}>
-                <Card.Content style={styles.centeredContent}>
-                  <ActivityIndicator size="large" />
+              <Card style={styles.cardSpacing}>
+                <View style={styles.centeredContent}>
+                  <ActivityIndicator size="large" color={theme.colors.accent} />
                   <Text style={styles.loadingText}>Ładowanie danych...</Text>
-                </Card.Content>
+                </View>
               </Card>
             ) : (
               <>
-                {/* Podsumowanie miesięczne */}
-                <Card style={styles.sectionCard}>
-                  <Card.Content>
-                    <Title style={styles.sectionTitle}>Podsumowanie miesiąca</Title>
-                    
-                    <View style={styles.statsGrid}>
-                      <View style={styles.statItem}>
-                        <Text style={styles.statLabel}>Łącznie godzin</Text>
-                        <Text style={styles.statValue}>
-                          {monthlyStats.totalHours.toFixed(1)}
-                        </Text>
-                      </View>
-                      <View style={styles.statItem}>
-                        <Text style={styles.statLabel}>Dni z wpisami</Text>
-                        <Text style={styles.statValue}>
-                          {monthlyStats.daysWithEntries}
-                        </Text>
-                      </View>
-                      <View style={styles.statItem}>
-                        <Text style={styles.statLabel}>Średnia/dzień</Text>
-                        <Text style={styles.statValue}>
-                          {monthlyStats.averagePerDay.toFixed(1)}
-                        </Text>
-                      </View>
-                    </View>
+                {/* 4. Card "Podsumowanie miesiąca" */}
+                <Card style={styles.cardSpacing}>
+                  <SectionTitle text="PODSUMOWANIE MIESIĄCA" />
 
-                    <Divider style={styles.divider} />
-
-                    <View style={styles.detailedStats}>
-                      <View style={styles.statusStat}>
-                        <Chip mode="outlined" style={styles.workChip}>Praca</Chip>
-                        <Text style={styles.statusValue}>
-                          {monthlyStats.workHours.toFixed(1)}h
-                        </Text>
-                      </View>
-                      <View style={styles.statusStat}>
-                        <Chip mode="outlined" style={styles.sickChip}>Chorobowe</Chip>
-                        <Text style={styles.statusValue}>
-                          {monthlyStats.sickHours.toFixed(1)}h
-                        </Text>
-                      </View>
-                      <View style={styles.statusStat}>
-                        <Chip mode="outlined" style={styles.vacationChip}>Urlop</Chip>
-                        <Text style={styles.statusValue}>
-                          {monthlyStats.vacationHours.toFixed(1)}h
-                        </Text>
-                      </View>
-                      <View style={styles.statusStat}>
-                        <Chip mode="outlined" style={styles.fzaChip}>FZA</Chip>
-                        <Text style={styles.statusValue}>
-                          {monthlyStats.fzaHours.toFixed(1)}h
-                        </Text>
-                      </View>
+                  {/* Rząd 3 StatBoxów */}
+                  <View style={styles.statsRow}>
+                    <View style={styles.statBoxWrapper}>
+                      <StatBox
+                        value={monthlyStats.totalHours.toFixed(1)}
+                        label="Łącznie godzin"
+                      />
                     </View>
-                  </Card.Content>
+                    <View style={styles.statBoxWrapper}>
+                      <StatBox
+                        value={String(monthlyStats.daysWithEntries)}
+                        label="Dni z wpisami"
+                      />
+                    </View>
+                    <View style={styles.statBoxWrapper}>
+                      <StatBox
+                        value={monthlyStats.averagePerDay.toFixed(1)}
+                        label="Średnia/dzień"
+                      />
+                    </View>
+                  </View>
+
+                  {/* Separator */}
+                  <View style={styles.separator} />
+
+                  {/* Lista statusów */}
+                  <View style={styles.statusList}>
+                    <View style={styles.statusRow}>
+                      <StatusBadge status="work" />
+                      <Text style={styles.statusHours}>
+                        {monthlyStats.workHours.toFixed(1)}h
+                      </Text>
+                    </View>
+                    <View style={styles.statusRow}>
+                      <StatusBadge status="sick" />
+                      <Text style={styles.statusHours}>
+                        {monthlyStats.sickHours.toFixed(1)}h
+                      </Text>
+                    </View>
+                    <View style={styles.statusRow}>
+                      <StatusBadge status="vacation" />
+                      <Text style={styles.statusHours}>
+                        {monthlyStats.vacationHours.toFixed(1)}h
+                      </Text>
+                    </View>
+                    <View style={styles.statusRow}>
+                      <StatusBadge status="fza" />
+                      <Text style={styles.statusHours}>
+                        {monthlyStats.fzaHours.toFixed(1)}h
+                      </Text>
+                    </View>
+                  </View>
                 </Card>
 
                 {/* Kalendarz lub szczegółowy widok */}
                 {viewMode === 'calendar' ? (
-                  <Card style={styles.sectionCard}>
-                    <Card.Content>
-                      <Title style={styles.sectionTitle}>Kalendarz</Title>
-                      
-                      {/* Nagłówki dni tygodnia */}
-                      <View style={styles.weekDays}>
-                        {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'].map(day => (
-                          <Text key={day} style={styles.weekDay}>
-                            {day}
-                          </Text>
-                        ))}
-                      </View>
+                  <Card style={styles.cardSpacing}>
+                    <SectionTitle text="KALENDARZ" />
 
-                      {/* Dni kalendarza */}
-                      <View style={styles.calendarGrid}>
-                        {calendarDays.map((day, index) => (
-                          <TouchableOpacity
-                            key={index}
+                    {/* Nagłówki dni tygodnia */}
+                    <View style={styles.weekDays}>
+                      {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'].map(day => (
+                        <Text key={day} style={styles.weekDay}>
+                          {day}
+                        </Text>
+                      ))}
+                    </View>
+
+                    {/* Dni kalendarza */}
+                    <View style={styles.calendarGrid}>
+                      {calendarDays.map((day, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.dayCell,
+                            !day.isCurrentMonth && styles.dayCellOutside,
+                            day.totalHours > 0 && styles.dayCellWithEntries,
+                          ]}
+                          onPress={() => {
+                            // Można dodać nawigację do szczegółów dnia
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text
                             style={[
-                              styles.dayCell,
-                              !day.isCurrentMonth && styles.dayCellOutside,
-                              day.totalHours > 0 && styles.dayCellWithEntries,
+                              styles.dayNumber,
+                              !day.isCurrentMonth && styles.dayNumberOutside,
                             ]}
-                            onPress={() => {
-                              // Można dodać nawigację do szczegółów dnia
-                            }}
                           >
-                            <Text
-                              style={[
-                                styles.dayNumber,
-                                !day.isCurrentMonth && styles.dayNumberOutside,
-                              ]}
-                            >
-                              {format(day.date, 'd')}
-                            </Text>
-                            
-                            {day.totalHours > 0 && (
-                              <View style={styles.dayEntries}>
-                                <Text style={styles.dayHours}>
-                                  {day.totalHours}h
-                                </Text>
-                                {day.entries.length > 0 && (
-                                  <View style={styles.statusIndicators}>
-                                    {day.entries.map((entry, idx) => (
-                                      <View
-                                        key={idx}
-                                        style={[
-                                          styles.statusDot,
-                                          { backgroundColor: getStatusColor(entry.status) },
-                                        ]}
-                                      />
-                                    ))}
-                                  </View>
-                                )}
-                              </View>
-                            )}
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </Card.Content>
+                            {format(day.date, 'd')}
+                          </Text>
+
+                          {day.totalHours > 0 && (
+                            <View style={styles.dayEntries}>
+                              <Text style={styles.dayHours}>
+                                {day.totalHours}h
+                              </Text>
+                              {day.entries.length > 0 && (
+                                <View style={styles.statusIndicators}>
+                                  {day.entries.map((entry, idx) => (
+                                    <View
+                                      key={idx}
+                                      style={[
+                                        styles.statusDot,
+                                        {
+                                          backgroundColor:
+                                            theme.colors.statusColors[entry.status as StatusType]
+                                              ?.text ?? theme.colors.muted,
+                                        },
+                                      ]}
+                                    />
+                                  ))}
+                                </View>
+                              )}
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </Card>
                 ) : (
-                  /* Szczegółowy widok - lista dni */
-                  <Card style={styles.sectionCard}>
-                    <Card.Content>
-                      <Title style={styles.sectionTitle}>Szczegółowy wykaz</Title>
-                      
-                      {timeEntries.length === 0 ? (
-                        <Paragraph style={styles.emptyText}>
-                          Brak wpisów dla wybranego miesiąca
-                        </Paragraph>
-                      ) : (
-                        <View style={styles.detailedList}>
-                          {timeEntries.map(entry => (
-                            <View key={entry.id} style={styles.entryItem}>
-                              <View style={styles.entryHeader}>
-                                <Text style={styles.entryDate}>
-                                  {format(parseISO(entry.date), 'dd.MM.yyyy')}
-                                </Text>
-                                <Chip
-                                  mode="outlined"
-                                  style={[
-                                    styles.statusChip,
-                                    { backgroundColor: getStatusColor(entry.status) + '20' },
-                                  ]}
-                                >
-                                  {getStatusLabel(entry.status)}
-                                </Chip>
-                              </View>
-                              <View style={styles.entryDetails}>
-                                <Text style={styles.entryHours}>
-                                  {entry.hours} godzin
-                                </Text>
-                                {entry.notes && (
-                                  <Text style={styles.entryNotes}>
-                                    {entry.notes}
-                                  </Text>
-                                )}
-                              </View>
+                  <Card style={styles.cardSpacing}>
+                    <SectionTitle text="SZCZEGÓŁOWY WYKAZ" />
+
+                    {timeEntries.length === 0 ? (
+                      <Text style={styles.emptyText}>
+                        Brak wpisów dla wybranego miesiąca
+                      </Text>
+                    ) : (
+                      <View style={styles.detailedList}>
+                        {timeEntries.map(entry => (
+                          <View key={entry.id} style={styles.entryItem}>
+                            <View style={styles.entryHeader}>
+                              <Text style={styles.entryDate}>
+                                {format(parseISO(entry.date), 'dd.MM.yyyy')}
+                              </Text>
+                              <StatusBadge
+                                status={entry.status as StatusType}
+                                size="sm"
+                              />
                             </View>
-                          ))}
-                        </View>
-                      )}
-                    </Card.Content>
+                            <View style={styles.entryDetails}>
+                              <Text style={styles.entryHours}>
+                                {entry.hours} godzin
+                              </Text>
+                              {entry.notes && (
+                                <Text style={styles.entryNotes}>
+                                  {entry.notes}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
                   </Card>
                 )}
               </>
             )}
           </>
         ) : (
-          <Card style={styles.sectionCard}>
-            <Card.Content style={styles.centeredContent}>
+          <Card style={styles.cardSpacing}>
+            <View style={styles.centeredContent}>
               <Text style={styles.infoText}>
                 Wybierz pracownika, aby zobaczyć jego miesięczne podsumowanie
               </Text>
-            </Card.Content>
+            </View>
           </Card>
         )}
       </ScrollView>
 
       {/* Modal wyboru pracownika */}
-      <Portal>
-        <Modal
-          visible={showEmployeeModal}
-          onDismiss={() => setShowEmployeeModal(false)}
-          contentContainerStyle={styles.modalContainer}
-        >
-          <Card>
-            <Card.Content>
-              <Title style={styles.modalTitle}>Wybierz pracownika</Title>
-              
-              <ScrollView style={styles.employeeList}>
-                {employees
-                  .filter(emp => emp.active)
-                  .map(employee => (
-                    <TouchableOpacity
-                      key={employee.id}
-                      style={styles.employeeItem}
-                      onPress={() => handleSelectEmployee(employee.id)}
-                    >
-                      <Text style={styles.employeeItemName}>{employee.name}</Text>
-                      <Text style={styles.employeeItemPosition}>{employee.position}</Text>
-                    </TouchableOpacity>
-                  ))}
-              </ScrollView>
-              
-              <Button
-                mode="outlined"
-                onPress={() => setShowEmployeeModal(false)}
-                style={styles.modalCloseButton}
-              >
-                Zamknij
-              </Button>
-            </Card.Content>
-          </Card>
-        </Modal>
-      </Portal>
+      <Modal
+        visible={showEmployeeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEmployeeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Wybierz pracownika</Text>
+              <TouchableOpacity onPress={() => setShowEmployeeModal(false)}>
+                <MaterialCommunityIcons
+                  name="close"
+                  size={24}
+                  color={theme.colors.dark}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.employeeList}>
+              {employees
+                .filter(emp => emp.active)
+                .map(employee => (
+                  <TouchableOpacity
+                    key={employee.id}
+                    style={styles.employeeItem}
+                    onPress={() => handleSelectEmployee(employee.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.employeeItemName}>{employee.name}</Text>
+                    <Text style={styles.employeeItemPosition}>
+                      {employee.position}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowEmployeeModal(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalCloseText}>Zamknij</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
-}
-
-// =====================================================
-// Helper Functions
-// =====================================================
-
-function getStatusLabel(status: TimeEntryStatus): string {
-  const labels = {
-    work: 'Praca',
-    sick: 'Chorobowe',
-    vacation: 'Urlop',
-    fza: 'FZA',
-  };
-  return labels[status];
-}
-
-function getStatusColor(status: TimeEntryStatus): string {
-  const colors = {
-    work: '#4caf50', // zielony
-    sick: '#ff9800', // pomarańczowy
-    vacation: '#2196f3', // niebieski
-    fza: '#9c27b0', // fioletowy
-  };
-  return colors[status];
 }
 
 // =====================================================
@@ -498,147 +517,154 @@ function getStatusColor(status: TimeEntryStatus): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
-    padding: 16,
     paddingBottom: 32,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background,
   },
   centeredContent: {
     alignItems: 'center',
     paddingVertical: 40,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    marginTop: theme.spacing.lg,
+    fontSize: theme.fontSize.lg,
+    color: theme.colors.muted,
   },
-  headerCard: {
-    marginBottom: 16,
-    backgroundColor: '#4caf50',
+  cardSpacing: {
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
   },
-  title: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
+
+  // ── Employee Section ──
+  employeeSection: {
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.sm,
   },
-  sectionCard: {
-    marginBottom: 16,
+  employeeNameRow: {
+    gap: 2,
   },
-  sectionHeader: {
+  employeeFirstName: {
+    fontSize: theme.fontSize.xl,
+    fontWeight: '700',
+    color: theme.colors.dark,
+  },
+  employeeLastName: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.muted,
+  },
+  pillButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    alignSelf: 'flex-start',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.accentLight,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.radius.pill,
+    marginTop: theme.spacing.md,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+  pillButtonText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '700',
+    color: theme.colors.accent,
   },
-  employeeInfo: {
-    marginTop: 12,
-    gap: 8,
-  },
-  employeeName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  employeePosition: {
-    fontSize: 16,
-    color: '#666',
-  },
+
+  // ── Month Navigation ──
   monthNavigation: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
-  monthTitleContainer: {
-    alignItems: 'center',
+  navArrow: {
+    padding: theme.spacing.xs,
   },
   monthTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  monthSubtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.fontSize.xl,
+    fontWeight: '700',
+    color: theme.colors.dark,
     textTransform: 'capitalize',
   },
-  segmentedButtons: {
-    marginTop: 8,
-  },
-  statsGrid: {
+
+  // ── Toggle ──
+  toggleContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 8,
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.xs,
+    gap: theme.spacing.xs,
   },
-  statItem: {
-    width: '30%',
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.sm,
     alignItems: 'center',
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
+  toggleBtnActive: {
+    backgroundColor: theme.colors.dark,
   },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4caf50',
-  },
-  divider: {
-    marginVertical: 16,
-  },
-  detailedStats: {
-    gap: 12,
-  },
-  statusStat: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  workChip: {
-    backgroundColor: '#e8f5e9',
-  },
-  sickChip: {
-    backgroundColor: '#fff3e0',
-  },
-  vacationChip: {
-    backgroundColor: '#e3f2fd',
-  },
-  fzaChip: {
-    backgroundColor: '#f3e5f5',
-  },
-  statusValue: {
-    fontSize: 16,
+  toggleText: {
+    fontSize: theme.fontSize.md,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.muted,
   },
+  toggleTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // ── Stats ──
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  statBoxWrapper: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.radius.sm,
+    padding: theme.spacing.sm,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: theme.spacing.lg,
+  },
+
+  // ── Status List ──
+  statusList: {
+    gap: theme.spacing.md,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xs,
+  },
+  statusHours: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.dark,
+  },
+
+  // ── Calendar ──
   weekDays: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 8,
-    paddingHorizontal: 4,
+    marginBottom: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
   },
   weekDay: {
-    fontSize: 12,
+    fontSize: theme.fontSize.sm,
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.muted,
     width: 40,
     textAlign: 'center',
   },
@@ -651,36 +677,36 @@ const styles = StyleSheet.create({
     height: 60,
     margin: 4,
     padding: 4,
-    borderRadius: 8,
-    backgroundColor: 'white',
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.card,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: theme.colors.border,
     alignItems: 'center',
   },
   dayCellOutside: {
-    backgroundColor: '#fafafa',
-    borderColor: '#f0f0f0',
+    backgroundColor: theme.colors.background,
+    borderColor: theme.colors.border,
   },
   dayCellWithEntries: {
-    backgroundColor: '#f0f9ff',
-    borderColor: '#90caf9',
+    backgroundColor: theme.colors.accentLight,
+    borderColor: theme.colors.accent,
   },
   dayNumber: {
-    fontSize: 14,
+    fontSize: theme.fontSize.md,
     fontWeight: '500',
-    color: '#333',
+    color: theme.colors.dark,
   },
   dayNumberOutside: {
-    color: '#aaa',
+    color: theme.colors.muted,
   },
   dayEntries: {
     alignItems: 'center',
     marginTop: 2,
   },
   dayHours: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#2196f3',
+    fontSize: theme.fontSize.xs,
+    fontWeight: '700',
+    color: theme.colors.accent,
   },
   statusIndicators: {
     flexDirection: 'row',
@@ -692,80 +718,107 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginHorizontal: 1,
   },
+
+  // ── Detailed List ──
   emptyText: {
     textAlign: 'center',
-    color: '#666',
+    color: theme.colors.muted,
     fontStyle: 'italic',
-    paddingVertical: 20,
+    paddingVertical: theme.spacing.xl,
+    fontSize: theme.fontSize.md,
   },
   infoText: {
     textAlign: 'center',
-    fontSize: 16,
-    color: '#666',
+    fontSize: theme.fontSize.lg,
+    color: theme.colors.muted,
     lineHeight: 24,
   },
   detailedList: {
-    gap: 12,
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.sm,
   },
   entryItem: {
-    backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#eee',
+    backgroundColor: theme.colors.background,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
   },
   entryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: theme.spacing.sm,
   },
   entryDate: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  statusChip: {
-    height: 24,
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.dark,
   },
   entryDetails: {
-    gap: 4,
+    gap: theme.spacing.xs,
   },
   entryHours: {
-    fontSize: 14,
-    color: '#4caf50',
-    fontWeight: '500',
+    fontSize: theme.fontSize.md,
+    color: theme.colors.accent,
+    fontWeight: '600',
   },
   entryNotes: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.muted,
     fontStyle: 'italic',
   },
+
+  // ── Modal ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
   modalContainer: {
-    margin: 20,
+    backgroundColor: theme.colors.card,
+    borderTopLeftRadius: theme.radius.xl,
+    borderTopRightRadius: theme.radius.xl,
+    padding: theme.spacing.xl,
     maxHeight: '80%',
   },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
   modalTitle: {
-    marginBottom: 16,
+    fontSize: theme.fontSize.xl,
+    fontWeight: '900',
+    color: theme.colors.dark,
   },
   employeeList: {
     maxHeight: 300,
   },
   employeeItem: {
-    padding: 12,
+    paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: theme.colors.border,
   },
   employeeItemName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.dark,
   },
   employeeItemPosition: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.fontSize.md,
+    color: theme.colors.muted,
+    marginTop: 2,
   },
   modalCloseButton: {
-    marginTop: 16,
+    marginTop: theme.spacing.lg,
+    backgroundColor: theme.colors.background,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.dark,
   },
 });
