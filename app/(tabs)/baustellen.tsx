@@ -196,20 +196,23 @@ export default function BaustellenScreen() {
 
                   <View style={styles.siteMetrics}>
                     <View style={styles.metricTag}>
-                      <Text style={styles.metricValue}>
-                        {/* TODO: Pobierz rzeczywiste dane z widoku ActiveSiteSummary */}
-                        0.0t
-                      </Text>
+                      <Text style={styles.metricValue}>0.0t</Text>
                       <Text style={styles.metricLabel}>ton</Text>
                     </View>
                     <View style={styles.metricTag}>
-                      <Text style={styles.metricValue}>
-                        {/* TODO: Pobierz rzeczywiste dane z widoku ActiveSiteSummary */}
-                        0
-                      </Text>
+                      <Text style={styles.metricValue}>0</Text>
                       <Text style={styles.metricLabel}>dostaw</Text>
                     </View>
-                    {/* TODO: Wyświetl tagi klas asfaltu */}
+                    <TouchableOpacity
+                      style={styles.planButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        router.push(`/plan-import?siteId=${site.id}`);
+                      }}
+                    >
+                      <Ionicons name="camera-outline" size={14} color={theme.colors.accent} />
+                      <Text style={styles.planButtonText}>Plan</Text>
+                    </TouchableOpacity>
                   </View>
                 </Card>
               </TouchableOpacity>
@@ -326,6 +329,22 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontSize: theme.fontSize.xs,
+    color: theme.colors.accent,
+  },
+  planButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: theme.colors.accentLight,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+  },
+  planButtonText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '600',
     color: theme.colors.accent,
   },
   fab: {

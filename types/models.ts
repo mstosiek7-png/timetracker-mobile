@@ -234,6 +234,24 @@ export interface DeliveryFull {
 }
 
 // =====================================================
+// Building Plans (Baupläne)
+// =====================================================
+
+export interface BuildingPlan {
+  id: string;
+  site_id: string;
+  name: string | null;
+  plan_url: string;
+  file_size: number | null;
+  mime_type: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+export type BuildingPlanInsert = Omit<BuildingPlan, 'id' | 'created_at' | 'updated_at' | 'created_by'>;
+
+// =====================================================
 // Employee with relations
 // =====================================================
 

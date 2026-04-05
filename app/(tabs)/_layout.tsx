@@ -57,6 +57,19 @@ export default function TabsLayout() {
         }}
       />
 
+      {/* Plan importieren — ukryty z tab baru, dostępny z widoku budowy */}
+      <Tabs.Screen
+        name="plan-import"
+        options={{
+          href: null,
+          headerTitle: 'Plan importieren',
+          headerStyle: {
+            backgroundColor: theme.colors.accent,
+          },
+          headerTintColor: '#fff',
+        }}
+      />
+
       {/* Baustellen Tab */}
       <Tabs.Screen
         name="baustellen"
